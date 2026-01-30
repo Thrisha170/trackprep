@@ -1,7 +1,8 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, BookOpen, BarChart3, Plus, Settings, Moon, Sun, Target } from 'lucide-react';
+import { Home, BookOpen, BarChart3, Plus, Settings, Moon, Sun } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { cn } from '@/lib/utils';
+import TrackPrepLogo from '@/components/icons/TrackPrepLogo';
 
 const navItems = [
   { to: '/', icon: Home, label: 'Dashboard' },
@@ -21,9 +22,7 @@ export function DesktopSidebar() {
       {/* Logo */}
       <div className="p-6 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
-            <Target className="w-5 h-5 text-primary-foreground" />
-          </div>
+          <TrackPrepLogo size={40} />
           <div>
             <h1 className="font-display font-bold text-lg text-sidebar-foreground">TrackPrep</h1>
             <p className="text-xs text-muted-foreground">Study smarter</p>
