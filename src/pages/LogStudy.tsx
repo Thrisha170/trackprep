@@ -38,7 +38,13 @@ export default function LogStudy() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!examId || !categoryId || !description.trim() || !quantity) return;
+    const quantityInt = parseInt(quantity, 10);
+    if (!examId || !categoryId || !description.trim() || !quantity || isNaN(quantityInt) || quantityInt < 1) {
+      if (quantity && (isNaN(quantityInt) || quantityInt < 1)) {
+        toast.error('Please enter a whole number greater than 0');
+      }
+      return;
+    }
 
     setIsSubmitting(true);
 
@@ -46,7 +52,7 @@ export default function LogStudy() {
       examId,
       categoryId,
       description: description.trim(),
-      quantity: parseFloat(quantity),
+      quantity: quantityInt,
       date,
       marks: showMarks && marksObtained && marksTotal 
         ? { obtained: parseFloat(marksObtained), total: parseFloat(marksTotal) }
@@ -171,11 +177,23 @@ export default function LogStudy() {
                     <Input
                       id="quantity"
                       type="number"
-                      min="0.1"
-                      step={selectedCategory?.targetType === 'time' ? '0.25' : '1'}
+                      min="1"
+                      step="1"
                       placeholder="e.g., 2"
                       value={quantity}
-                      onChange={(e) => setQuantity(e.target.value)}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Only allow whole numbers
+                        if (value === '' || /^\d+$/.test(value)) {
+                          setQuantity(value);
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        // Prevent decimal point and other non-integer characters
+                        if (e.key === '.' || e.key === ',' || e.key === '-' || e.key === 'e') {
+                          e.preventDefault();
+                        }
+                      }}
                       required
                     />
                   </div>
