@@ -20,8 +20,8 @@ export function ProgressBar({
   const percentage = Math.min(Math.round((value / max) * 100), 100);
   
   const heights = {
-    sm: 'h-1.5',
-    md: 'h-2.5',
+    sm: 'h-2',
+    md: 'h-3',
     lg: 'h-4',
   };
 
@@ -36,16 +36,21 @@ export function ProgressBar({
     <div className={cn("w-full", className)}>
       {showLabel && (
         <div className="flex justify-between items-center mb-1.5">
-          <span className="text-xs text-muted-foreground">Progress</span>
+          <span className="text-xs text-muted-foreground">Journey Progress</span>
           <span className="text-xs font-medium">{percentage}%</span>
         </div>
       )}
-      <div className={cn("w-full bg-progress-bg rounded-full overflow-hidden", heights[size])}>
+      <div className={cn("w-full bg-progress-bg rounded-full overflow-hidden relative", heights[size])}>
         <div 
           className={cn(
-            "h-full rounded-full transition-all duration-500 ease-out",
+            "h-full rounded-full transition-all duration-700 ease-out",
             getColor()
           )}
+          style={{ width: `${percentage}%` }}
+        />
+        {/* Subtle shine effect */}
+        <div 
+          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent rounded-full"
           style={{ width: `${percentage}%` }}
         />
       </div>
@@ -86,6 +91,7 @@ export function CircularProgress({
   return (
     <div className={cn("relative inline-flex items-center justify-center", className)}>
       <svg width={size} height={size} className="transform -rotate-90">
+        {/* Background track */}
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -95,6 +101,7 @@ export function CircularProgress({
           strokeWidth={strokeWidth}
           className="text-progress-bg"
         />
+        {/* Progress arc with gradient colors */}
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -105,7 +112,7 @@ export function CircularProgress({
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          className={cn("transition-all duration-500 ease-out", getColor())}
+          className={cn("transition-all duration-700 ease-out", getColor())}
         />
       </svg>
       {showLabel && (
