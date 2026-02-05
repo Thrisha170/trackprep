@@ -4,7 +4,7 @@ import { Exam } from '@/types';
 import { ProgressBar, CircularProgress } from '@/components/ui/progress-display';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ChevronRight, Calendar, Layers, MoreVertical, Trash2, Pencil } from 'lucide-react';
+import { ChevronRight, Calendar, MapPin, MoreVertical, Trash2, Pencil } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 
@@ -24,16 +24,16 @@ export function ExamCard({ exam, variant = 'default' }: ExamCardProps) {
   if (variant === 'compact') {
     return (
       <Link to={`/exams/${exam.id}`}>
-        <Card className="card-elevated hover:shadow-md transition-shadow cursor-pointer animate-fade-in">
+        <Card className="card-milestone hover:shadow-lg transition-all duration-300 cursor-pointer animate-fade-in group">
           <CardContent className="p-4 flex items-center gap-4">
             <CircularProgress value={progress} size={56} strokeWidth={6} showLabel={false} />
             <div className="flex-1 min-w-0">
-              <h3 className="font-display font-semibold truncate">{exam.name}</h3>
+              <h3 className="font-display font-semibold truncate group-hover:text-primary transition-colors">{exam.name}</h3>
               <p className="text-xs text-muted-foreground">
-                {exam.categories.length} categories • {progress}% complete
+                {exam.categories.length} milestones • {progress}% complete
               </p>
             </div>
-            <ChevronRight className="w-5 h-5 text-muted-foreground" />
+            <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
           </CardContent>
         </Card>
       </Link>
@@ -41,11 +41,12 @@ export function ExamCard({ exam, variant = 'default' }: ExamCardProps) {
   }
 
   return (
-    <Card className="card-elevated animate-fade-in overflow-hidden">
-      <CardHeader className="pb-3">
+    <Card className="card-milestone animate-fade-in overflow-hidden group hover:shadow-lg transition-all duration-300">
+      <div className="h-1 progress-gradient opacity-60" />
+      <CardHeader className="pb-3 pt-4">
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
-            <CardTitle className="font-display text-lg truncate">{exam.name}</CardTitle>
+            <CardTitle className="font-display text-lg truncate group-hover:text-primary transition-colors">{exam.name}</CardTitle>
             {exam.description && (
               <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{exam.description}</p>
             )}
@@ -73,13 +74,13 @@ export function ExamCard({ exam, variant = 'default' }: ExamCardProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Progress */}
+        {/* Journey Progress */}
         <div className="flex items-center gap-4">
-          <CircularProgress value={progress} size={64} strokeWidth={6} label="done" />
+          <CircularProgress value={progress} size={68} strokeWidth={7} label="complete" />
           <div className="flex-1 space-y-1">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Layers className="w-4 h-4" />
-              <span>{exam.categories.length} categories</span>
+              <MapPin className="w-4 h-4 text-accent" />
+              <span>{exam.categories.length} milestones</span>
             </div>
             {daysUntilExam !== null && (
               <div className={cn(
@@ -100,12 +101,12 @@ export function ExamCard({ exam, variant = 'default' }: ExamCardProps) {
           </div>
         </div>
 
-        {/* Category previews */}
+        {/* Milestone previews */}
         {exam.categories.length > 0 && (
           <div className="space-y-2">
             {exam.categories.slice(0, 3).map(cat => (
               <div key={cat.id} className="flex items-center gap-3">
-                <span className="text-sm text-muted-foreground w-24 truncate">{cat.name}</span>
+                <span className="text-sm text-muted-foreground w-24 truncate font-medium">{cat.name}</span>
                 <ProgressBar 
                   value={cat.completedValue} 
                   max={cat.targetValue} 
@@ -126,9 +127,9 @@ export function ExamCard({ exam, variant = 'default' }: ExamCardProps) {
         )}
 
         <Link to={`/exams/${exam.id}`}>
-          <Button variant="outline" className="w-full mt-2">
+          <Button variant="outline" className="w-full mt-2 group-hover:border-primary group-hover:text-primary transition-colors">
             View Details
-            <ChevronRight className="w-4 h-4 ml-1" />
+            <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
           </Button>
         </Link>
       </CardContent>

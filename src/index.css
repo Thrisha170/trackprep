@@ -2,138 +2,153 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap');
 
-/* TrackPrep Design System
-   A calm, focused study app with warm, professional aesthetics
-   Colors: Sage green primary, warm neutrals, soft coral accents
+/* TrackPrep Design System - Journey Theme
+   Visual identity: Road/journey, upward progress, shield (trust), achievement glow
+   Colors: Blue → Teal → Green gradient progression, Gold for achievements
+   Mood: Calm, focused, motivating, premium
 */
 
 @layer base {
   :root {
-    /* Core palette - Warm and calming */
-    --background: 40 25% 97%;
-    --foreground: 220 20% 15%;
+    /* Core palette - Light theme */
+    --background: 210 20% 98%;
+    --foreground: 215 25% 15%;
 
-    --card: 40 20% 99%;
-    --card-foreground: 220 20% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 15%;
 
-    --popover: 40 20% 99%;
-    --popover-foreground: 220 20% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 15%;
 
-    /* Sage green primary - calm and focused */
-    --primary: 150 35% 40%;
-    --primary-foreground: 40 25% 98%;
+    /* Primary - Deep blue from logo */
+    --primary: 210 85% 45%;
+    --primary-foreground: 0 0% 100%;
 
-    /* Warm secondary */
-    --secondary: 35 30% 92%;
-    --secondary-foreground: 220 20% 20%;
+    /* Secondary - Soft muted */
+    --secondary: 210 20% 94%;
+    --secondary-foreground: 215 25% 20%;
 
-    /* Muted warm tones */
-    --muted: 35 20% 94%;
-    --muted-foreground: 220 15% 45%;
+    /* Muted tones */
+    --muted: 210 15% 93%;
+    --muted-foreground: 215 15% 45%;
 
-    /* Accent - soft coral for highlights */
-    --accent: 20 70% 55%;
+    /* Accent - Teal from logo */
+    --accent: 165 60% 40%;
     --accent-foreground: 0 0% 100%;
 
-    /* Success green for progress */
-    --success: 150 45% 45%;
+    /* Success - Green from logo (growth) */
+    --success: 145 65% 42%;
     --success-foreground: 0 0% 100%;
 
-    /* Warning amber */
-    --warning: 38 90% 55%;
-    --warning-foreground: 220 20% 15%;
+    /* Warning - Warm amber */
+    --warning: 40 95% 50%;
+    --warning-foreground: 215 25% 15%;
+
+    /* Achievement - Gold sparkle from logo */
+    --achievement: 45 100% 50%;
+    --achievement-foreground: 215 25% 15%;
 
     --destructive: 0 65% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 35 20% 88%;
-    --input: 35 20% 88%;
-    --ring: 150 35% 40%;
+    --border: 210 20% 88%;
+    --input: 210 20% 88%;
+    --ring: 210 85% 45%;
 
     --radius: 0.75rem;
 
-    /* Progress colors */
-    --progress-bg: 35 20% 90%;
-    --progress-fill: 150 45% 45%;
-    --progress-low: 20 70% 55%;
-    --progress-mid: 38 90% 55%;
-    --progress-high: 150 45% 45%;
+    /* Progress colors - Journey gradient */
+    --progress-bg: 210 15% 90%;
+    --progress-fill: 165 60% 40%;
+    --progress-low: 210 85% 45%;
+    --progress-mid: 165 60% 40%;
+    --progress-high: 145 65% 42%;
 
-    /* Chart colors */
-    --chart-1: 150 45% 45%;
-    --chart-2: 38 90% 55%;
-    --chart-3: 20 70% 55%;
-    --chart-4: 200 60% 50%;
-    --chart-5: 280 50% 55%;
+    /* Chart colors - Blue to Green spectrum */
+    --chart-1: 210 85% 45%;
+    --chart-2: 185 70% 42%;
+    --chart-3: 165 60% 40%;
+    --chart-4: 145 65% 42%;
+    --chart-5: 45 100% 50%;
 
     /* Sidebar */
-    --sidebar-background: 40 20% 98%;
-    --sidebar-foreground: 220 20% 25%;
-    --sidebar-primary: 150 35% 40%;
+    --sidebar-background: 215 30% 97%;
+    --sidebar-foreground: 215 25% 25%;
+    --sidebar-primary: 210 85% 45%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 35 30% 94%;
-    --sidebar-accent-foreground: 220 20% 20%;
-    --sidebar-border: 35 20% 90%;
-    --sidebar-ring: 150 35% 40%;
+    --sidebar-accent: 210 25% 94%;
+    --sidebar-accent-foreground: 215 25% 20%;
+    --sidebar-border: 210 20% 90%;
+    --sidebar-ring: 210 85% 45%;
   }
 
   .dark {
-    --background: 220 20% 10%;
-    --foreground: 40 15% 92%;
+    /* Dark theme - Deep blue-gray base */
+    --background: 220 25% 8%;
+    --foreground: 210 15% 92%;
 
-    --card: 220 18% 13%;
-    --card-foreground: 40 15% 92%;
+    --card: 220 22% 12%;
+    --card-foreground: 210 15% 92%;
 
-    --popover: 220 18% 13%;
-    --popover-foreground: 40 15% 92%;
+    --popover: 220 22% 12%;
+    --popover-foreground: 210 15% 92%;
 
-    --primary: 150 40% 50%;
-    --primary-foreground: 220 20% 10%;
+    /* Primary - Brighter blue */
+    --primary: 210 80% 55%;
+    --primary-foreground: 220 25% 8%;
 
-    --secondary: 220 15% 18%;
-    --secondary-foreground: 40 15% 90%;
+    --secondary: 220 20% 16%;
+    --secondary-foreground: 210 15% 90%;
 
-    --muted: 220 15% 18%;
-    --muted-foreground: 40 10% 60%;
+    --muted: 220 20% 15%;
+    --muted-foreground: 210 10% 55%;
 
-    --accent: 20 65% 55%;
-    --accent-foreground: 0 0% 100%;
+    /* Accent - Bright teal */
+    --accent: 170 65% 45%;
+    --accent-foreground: 220 25% 8%;
 
-    --success: 150 50% 50%;
-    --success-foreground: 220 20% 10%;
+    /* Success - Vibrant green */
+    --success: 150 60% 50%;
+    --success-foreground: 220 25% 8%;
 
-    --warning: 38 85% 55%;
-    --warning-foreground: 220 20% 10%;
+    --warning: 42 95% 55%;
+    --warning-foreground: 220 25% 8%;
 
-    --destructive: 0 60% 50%;
+    /* Achievement - Gold glow */
+    --achievement: 48 100% 55%;
+    --achievement-foreground: 220 25% 8%;
+
+    --destructive: 0 65% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 15% 20%;
-    --input: 220 15% 20%;
-    --ring: 150 40% 50%;
+    --border: 220 20% 18%;
+    --input: 220 20% 18%;
+    --ring: 210 80% 55%;
 
-    --progress-bg: 220 15% 18%;
-    --progress-fill: 150 50% 50%;
-    --progress-low: 20 65% 55%;
-    --progress-mid: 38 85% 55%;
-    --progress-high: 150 50% 50%;
+    /* Progress - Vibrant journey gradient */
+    --progress-bg: 220 20% 15%;
+    --progress-fill: 170 65% 45%;
+    --progress-low: 210 80% 55%;
+    --progress-mid: 170 65% 45%;
+    --progress-high: 150 60% 50%;
 
-    --chart-1: 150 50% 50%;
-    --chart-2: 38 85% 55%;
-    --chart-3: 20 65% 55%;
-    --chart-4: 200 55% 55%;
-    --chart-5: 280 45% 60%;
+    /* Chart colors - Bright spectrum */
+    --chart-1: 210 80% 55%;
+    --chart-2: 190 70% 50%;
+    --chart-3: 170 65% 45%;
+    --chart-4: 150 60% 50%;
+    --chart-5: 48 100% 55%;
 
-    --sidebar-background: 220 18% 12%;
-    --sidebar-foreground: 40 15% 90%;
-    --sidebar-primary: 150 40% 50%;
-    --sidebar-primary-foreground: 220 20% 10%;
-    --sidebar-accent: 220 15% 16%;
-    --sidebar-accent-foreground: 40 15% 90%;
-    --sidebar-border: 220 15% 18%;
-    --sidebar-ring: 150 40% 50%;
+    --sidebar-background: 220 22% 10%;
+    --sidebar-foreground: 210 15% 90%;
+    --sidebar-primary: 210 80% 55%;
+    --sidebar-primary-foreground: 220 25% 8%;
+    --sidebar-accent: 220 20% 14%;
+    --sidebar-accent-foreground: 210 15% 90%;
+    --sidebar-border: 220 20% 16%;
+    --sidebar-ring: 210 80% 55%;
   }
 }
 
@@ -157,12 +172,19 @@
     font-family: 'Outfit', sans-serif;
   }
 
+  /* Journey gradient - Blue → Teal → Green */
   .gradient-primary {
-    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(150 40% 50%) 100%);
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 50%, hsl(var(--success)) 100%);
   }
 
-  .gradient-accent {
-    background: linear-gradient(135deg, hsl(var(--accent)) 0%, hsl(30 75% 55%) 100%);
+  /* Subtle journey gradient for backgrounds */
+  .gradient-journey {
+    background: linear-gradient(135deg, hsl(var(--primary) / 0.1) 0%, hsl(var(--accent) / 0.1) 50%, hsl(var(--success) / 0.1) 100%);
+  }
+
+  /* Achievement glow gradient */
+  .gradient-achievement {
+    background: linear-gradient(135deg, hsl(var(--achievement)) 0%, hsl(38 100% 60%) 100%);
   }
 
   .progress-gradient {
@@ -173,12 +195,63 @@
     @apply bg-card/80 backdrop-blur-sm;
   }
 
+  /* Milestone card - Learning journey style */
   .card-elevated {
-    @apply bg-card shadow-sm border border-border/50;
+    @apply bg-card rounded-2xl shadow-sm border border-border/50;
+  }
+
+  .card-milestone {
+    @apply bg-card rounded-2xl shadow-md border border-border/30;
+    box-shadow: 0 4px 20px -4px hsl(var(--primary) / 0.08), 0 2px 8px -2px hsl(var(--primary) / 0.04);
+  }
+
+  .dark .card-milestone {
+    box-shadow: 0 4px 24px -4px hsl(var(--primary) / 0.15), 0 2px 8px -2px hsl(0 0% 0% / 0.2);
+  }
+
+  /* Glow effects for achievements */
+  .glow-achievement {
+    box-shadow: 0 0 20px hsl(var(--achievement) / 0.3), 0 0 40px hsl(var(--achievement) / 0.1);
+  }
+
+  .glow-primary {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.2), 0 0 40px hsl(var(--primary) / 0.08);
+  }
+
+  /* Floating action button */
+  .fab {
+    @apply fixed z-50 rounded-full shadow-lg transition-all duration-300;
+    box-shadow: 0 6px 24px -4px hsl(var(--primary) / 0.35), 0 2px 8px hsl(var(--primary) / 0.2);
+  }
+
+  .fab:hover {
+    box-shadow: 0 8px 32px -4px hsl(var(--primary) / 0.45), 0 4px 12px hsl(var(--primary) / 0.25);
+    transform: scale(1.05);
+  }
+
+  .fab:active {
+    transform: scale(0.98);
   }
 
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  /* Active nav indicator */
+  .nav-active-indicator {
+    @apply absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary;
+    animation: nav-dot-in 0.3s ease-out;
+  }
+
+  @keyframes nav-dot-in {
+    from {
+      opacity: 0;
+      transform: translateX(-50%) scale(0);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(-50%) scale(1);
+    }
   }
 }
 
@@ -202,7 +275,7 @@
   background: hsl(var(--muted-foreground) / 0.5);
 }
 
-/* Smooth transitions for theme switching */
+/* Smooth theme transitions */
 * {
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.1s ease;
 }

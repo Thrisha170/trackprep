@@ -5,16 +5,16 @@ import { AddExamDialog } from '@/components/dialogs/AddDialogs';
 import { CircularProgress, ProgressBar } from '@/components/ui/progress-display';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, BookOpen, Target, Calendar, TrendingUp, Sparkles } from 'lucide-react';
+import { Plus, BookOpen, Target, Calendar, TrendingUp, Sparkles, Flame, Trophy } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const motivationalQuotes = [
-  "Every study session brings you closer to your goal.",
-  "Small steps every day lead to big achievements.",
-  "Your future self will thank you for studying today.",
-  "Progress, not perfection.",
-  "Consistency beats intensity. Keep going!",
-  "You're building something great, one page at a time.",
+  "Every step forward is progress on your journey.",
+  "Small milestones lead to big destinations.",
+  "Your future self will thank you for today's effort.",
+  "Progress, not perfection. Keep moving forward.",
+  "Consistency is the road to mastery. Keep going!",
+  "You're on the path to something great.",
 ];
 
 export default function Dashboard() {
@@ -38,91 +38,101 @@ export default function Dashboard() {
         {/* Header */}
         <header className="space-y-1">
           <p className="text-sm text-muted-foreground">{todayStr}</p>
-          <h1 className="text-2xl lg:text-3xl font-display font-bold">Dashboard</h1>
+          <h1 className="text-2xl lg:text-3xl font-display font-bold">Your Journey</h1>
         </header>
 
-        {/* Motivational Card */}
-        <Card className="gradient-primary text-primary-foreground overflow-hidden">
-          <CardContent className="p-5 flex items-center gap-4">
-            <Sparkles className="w-8 h-8 opacity-80 flex-shrink-0" />
-            <p className="text-sm lg:text-base font-medium">{randomQuote}</p>
+        {/* Journey motivation card with gradient */}
+        <Card className="gradient-primary text-primary-foreground overflow-hidden relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+          <CardContent className="p-5 flex items-center gap-4 relative">
+            <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+              <Sparkles className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-sm lg:text-base font-medium">{randomQuote}</p>
+              <p className="text-xs opacity-80 mt-1">Keep moving forward</p>
+            </div>
           </CardContent>
         </Card>
 
-        {/* Stats Grid */}
+        {/* Milestone stats grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="card-elevated">
-            <CardContent className="p-4">
+          <Card className="card-milestone group hover:scale-[1.02] transition-transform duration-300">
+            <CardContent className="p-4 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2" />
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform">
                   <Target className="w-5 h-5 text-primary" />
                 </div>
                 <div>
                   <p className="text-2xl font-display font-bold">{overallProgress}%</p>
-                  <p className="text-xs text-muted-foreground">Overall Progress</p>
+                  <p className="text-xs text-muted-foreground">Journey Progress</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="card-elevated">
-            <CardContent className="p-4">
+          <Card className="card-milestone group hover:scale-[1.02] transition-transform duration-300">
+            <CardContent className="p-4 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-accent/5 rounded-full -translate-y-1/2 translate-x-1/2" />
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
+                <div className="w-11 h-11 rounded-xl bg-accent/10 flex items-center justify-center group-hover:scale-110 transition-transform">
                   <BookOpen className="w-5 h-5 text-accent" />
                 </div>
                 <div>
                   <p className="text-2xl font-display font-bold">{stats.totalExams}</p>
-                  <p className="text-xs text-muted-foreground">Active Exams</p>
+                  <p className="text-xs text-muted-foreground">Active Paths</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="card-elevated">
-            <CardContent className="p-4">
+          <Card className="card-milestone group hover:scale-[1.02] transition-transform duration-300">
+            <CardContent className="p-4 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-success/5 rounded-full -translate-y-1/2 translate-x-1/2" />
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center">
+                <div className="w-11 h-11 rounded-xl bg-success/10 flex items-center justify-center group-hover:scale-110 transition-transform">
                   <TrendingUp className="w-5 h-5 text-success" />
                 </div>
                 <div>
                   <p className="text-2xl font-display font-bold">{todayEntries.length}</p>
-                  <p className="text-xs text-muted-foreground">Today's Sessions</p>
+                  <p className="text-xs text-muted-foreground">Today's Steps</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="card-elevated">
-            <CardContent className="p-4">
+          <Card className="card-milestone group hover:scale-[1.02] transition-transform duration-300">
+            <CardContent className="p-4 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-achievement/5 rounded-full -translate-y-1/2 translate-x-1/2" />
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center">
-                  <Calendar className="w-5 h-5 text-warning" />
+                <div className="w-11 h-11 rounded-xl bg-achievement/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Trophy className="w-5 h-5 text-achievement" />
                 </div>
                 <div>
                   <p className="text-2xl font-display font-bold">{stats.totalEntries}</p>
-                  <p className="text-xs text-muted-foreground">Total Entries</p>
+                  <p className="text-xs text-muted-foreground">Milestones</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Today's Progress */}
+        {/* Today's journey progress */}
         {todayEntries.length > 0 && (
           <section>
-            <h2 className="text-lg font-display font-semibold mb-3">Today's Study</h2>
-            <Card className="card-elevated">
-              <CardContent className="p-4 space-y-3">
+            <h2 className="text-lg font-display font-semibold mb-3">Today's Progress</h2>
+            <Card className="card-milestone">
+              <CardContent className="p-4 space-y-1">
                 {todayEntries.slice(0, 5).map(entry => {
                   const exam = exams.find(e => e.id === entry.examId);
                   const category = exam?.categories.find(c => c.id === entry.categoryId);
                   
                   return (
-                    <div key={entry.id} className="flex items-center gap-3 py-2 border-b border-border last:border-0">
-                      <div className="w-2 h-2 rounded-full bg-success flex-shrink-0" />
+                    <div key={entry.id} className="flex items-center gap-3 py-3 border-b border-border/50 last:border-0 group">
+                      <div className="w-2.5 h-2.5 rounded-full bg-success flex-shrink-0 group-hover:scale-125 transition-transform" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{entry.description}</p>
+                        <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">{entry.description}</p>
                         <p className="text-xs text-muted-foreground">
                           {exam?.name} • {category?.name}
                         </p>
@@ -135,7 +145,7 @@ export default function Dashboard() {
                 })}
                 {todayEntries.length > 5 && (
                   <p className="text-xs text-muted-foreground text-center pt-2">
-                    +{todayEntries.length - 5} more entries
+                    +{todayEntries.length - 5} more milestones
                   </p>
                 )}
               </CardContent>
@@ -143,10 +153,10 @@ export default function Dashboard() {
           </section>
         )}
 
-        {/* Exams */}
+        {/* Learning paths (Exams) */}
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-display font-semibold">Your Exams</h2>
+            <h2 className="text-lg font-display font-semibold">Your Learning Paths</h2>
             {exams.length > 0 && (
               <Link to="/exams" className="text-sm text-primary hover:underline">
                 View all
@@ -155,20 +165,20 @@ export default function Dashboard() {
           </div>
 
           {exams.length === 0 ? (
-            <Card className="card-elevated">
+            <Card className="card-milestone">
               <CardContent className="p-8 text-center">
-                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-                  <BookOpen className="w-8 h-8 text-muted-foreground" />
+                <div className="w-20 h-20 rounded-2xl gradient-journey flex items-center justify-center mx-auto mb-4">
+                  <BookOpen className="w-10 h-10 text-primary" />
                 </div>
-                <h3 className="font-display font-semibold mb-2">No exams yet</h3>
+                <h3 className="font-display font-semibold mb-2">Start Your Journey</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Start tracking your study progress by adding your first exam.
+                  Begin tracking your progress by adding your first learning path.
                 </p>
                 <AddExamDialog
                   trigger={
-                    <Button>
+                    <Button className="gradient-primary border-0">
                       <Plus className="w-4 h-4 mr-2" />
-                      Add Your First Exam
+                      Start Your First Path
                     </Button>
                   }
                 />
@@ -182,12 +192,12 @@ export default function Dashboard() {
               {exams.length <= 3 && (
                 <AddExamDialog
                   trigger={
-                    <Card className="card-elevated hover:shadow-md transition-shadow cursor-pointer border-dashed min-h-[200px] flex items-center justify-center">
+                    <Card className="card-milestone hover:shadow-lg transition-all duration-300 cursor-pointer border-dashed border-primary/20 hover:border-primary/40 min-h-[200px] flex items-center justify-center group">
                       <CardContent className="p-6 text-center">
-                        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
-                          <Plus className="w-6 h-6 text-muted-foreground" />
+                        <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3 group-hover:scale-110 group-hover:bg-primary/20 transition-all">
+                          <Plus className="w-7 h-7 text-primary" />
                         </div>
-                        <p className="text-sm text-muted-foreground">Add New Exam</p>
+                        <p className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">Add New Path</p>
                       </CardContent>
                     </Card>
                   }
@@ -203,23 +213,23 @@ export default function Dashboard() {
             <h2 className="text-lg font-display font-semibold mb-3">Quick Actions</h2>
             <div className="flex flex-wrap gap-3">
               <Link to="/log">
-                <Button>
+                <Button className="gradient-primary border-0 shadow-md hover:shadow-lg transition-shadow">
                   <Plus className="w-4 h-4 mr-2" />
-                  Log Study Session
+                  Log Progress
                 </Button>
               </Link>
               <AddExamDialog
                 trigger={
                   <Button variant="outline">
                     <BookOpen className="w-4 h-4 mr-2" />
-                    Add Exam
+                    Add Path
                   </Button>
                 }
               />
               <Link to="/analytics">
                 <Button variant="outline">
                   <TrendingUp className="w-4 h-4 mr-2" />
-                  View Analytics
+                  View Journey
                 </Button>
               </Link>
             </div>

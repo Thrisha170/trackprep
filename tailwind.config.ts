@@ -73,6 +73,10 @@ export default {
           mid: "hsl(var(--progress-mid))",
           high: "hsl(var(--progress-high))",
         },
+        achievement: {
+          DEFAULT: "hsl(var(--achievement))",
+          foreground: "hsl(var(--achievement-foreground))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
