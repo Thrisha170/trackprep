@@ -99,7 +99,7 @@ export function MobileBottomNav() {
   ];
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border safe-bottom z-50">
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-sm border-t border-border safe-bottom z-50">
       <div className="flex items-center justify-around py-2 px-1">
         {mobileItems.map((item) => {
           const isActive = location.pathname === item.to || 
@@ -139,13 +139,37 @@ export function MobileBottomNav() {
   );
 }
 
+export function MobileHeader() {
+  const { theme, toggleTheme } = useApp();
+
+  return (
+    <header className="lg:hidden sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border">
+      <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex items-center gap-2">
+          <TrackPrepLogo size={32} />
+          <h1 className="font-display font-bold text-lg text-foreground">TrackPrep</h1>
+        </div>
+        <button
+          onClick={toggleTheme}
+          className="p-2 rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+        >
+          {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+        </button>
+      </div>
+    </header>
+  );
+}
+
 export function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex w-full bg-background">
       <DesktopSidebar />
-      <main className="flex-1 min-h-screen pb-20 lg:pb-0">
-        {children}
-      </main>
+      <div className="flex-1 flex flex-col min-h-screen">
+        <MobileHeader />
+        <main className="flex-1 pb-20 lg:pb-0">
+          {children}
+        </main>
+      </div>
       <MobileBottomNav />
     </div>
   );
