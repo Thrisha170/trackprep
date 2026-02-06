@@ -1,10 +1,11 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import trackprepLogo from '@/assets/trackprep-logo.png';
 
 const SignIn = () => {
@@ -13,6 +14,27 @@ const SignIn = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
+
+  // Check if already logged in
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        navigate('/');
+      }
+    };
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        navigate('/');
+      }
+    });
+
+    checkSession();
+    
+    return () => subscription.unsubscribe();
+  }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,14 +49,27 @@ const SignIn = () => {
     }
 
     setIsLoading(true);
-    // TODO: Implement actual authentication
-    setTimeout(() => {
-      setIsLoading(false);
+    
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    setIsLoading(false);
+
+    if (error) {
       toast({
-        title: "Sign in",
-        description: "Authentication not yet configured",
+        title: "Sign in failed",
+        description: error.message,
+        variant: "destructive",
       });
-    }, 1000);
+    } else {
+      toast({
+        title: "Welcome back!",
+        description: "You have successfully signed in.",
+      });
+      navigate('/');
+    }
   };
 
   return (
@@ -46,11 +81,13 @@ const SignIn = () => {
         <div className="w-full max-w-md space-y-8">
           {/* Logo */}
           <div className="flex flex-col items-center space-y-4">
-            <img 
-              src={trackprepLogo} 
-              alt="TrackPrep Logo" 
-              className="w-32 h-32 object-contain"
-            />
+            <div className="logo-container">
+              <img 
+                src={trackprepLogo} 
+                alt="TrackPrep Logo" 
+                className="w-28 h-28 sm:w-32 sm:h-32 object-contain"
+              />
+            </div>
             <div className="text-center">
               <h1 className="text-2xl font-display font-bold text-foreground">
                 Welcome Back

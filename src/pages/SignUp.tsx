@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import trackprepLogo from '@/assets/trackprep-logo.png';
 
 const SignUp = () => {
@@ -15,6 +16,7 @@ const SignUp = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,14 +49,30 @@ const SignUp = () => {
     }
 
     setIsLoading(true);
-    // TODO: Implement actual authentication
-    setTimeout(() => {
-      setIsLoading(false);
+    
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: window.location.origin,
+      },
+    });
+
+    setIsLoading(false);
+
+    if (error) {
       toast({
-        title: "Sign up",
-        description: "Authentication not yet configured",
+        title: "Sign up failed",
+        description: error.message,
+        variant: "destructive",
       });
-    }, 1000);
+    } else {
+      toast({
+        title: "Check your email",
+        description: "We've sent you a confirmation link to verify your email address.",
+      });
+      navigate('/signin');
+    }
   };
 
   return (
@@ -66,11 +84,13 @@ const SignUp = () => {
         <div className="w-full max-w-md space-y-8">
           {/* Logo */}
           <div className="flex flex-col items-center space-y-4">
-            <img 
-              src={trackprepLogo} 
-              alt="TrackPrep Logo" 
-              className="w-32 h-32 object-contain"
-            />
+            <div className="logo-container">
+              <img 
+                src={trackprepLogo} 
+                alt="TrackPrep Logo" 
+                className="w-28 h-28 sm:w-32 sm:h-32 object-contain"
+              />
+            </div>
             <div className="text-center">
               <h1 className="text-2xl font-display font-bold text-foreground">
                 Create Account
