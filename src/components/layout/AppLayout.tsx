@@ -25,7 +25,7 @@ export function DesktopSidebar() {
       {/* Logo */}
       <div className="relative p-6 border-b border-sidebar-border/50">
         <div className="flex items-center gap-3">
-          <TrackPrepLogo size={40} />
+          <TrackPrepLogo size={44} />
           <div>
             <h1 className="font-display font-bold text-lg text-sidebar-foreground">TrackPrep</h1>
             <p className="text-xs text-muted-foreground">Your learning journey</p>
@@ -161,7 +161,7 @@ export function MobileHeader() {
     <header className="lg:hidden sticky top-0 z-40 bg-background/90 backdrop-blur-md border-b border-border/50">
       <div className="flex items-center justify-between px-4 py-2.5">
         <div className="flex items-center gap-2.5">
-          <TrackPrepLogo size={36} />
+          <TrackPrepLogo size={38} />
           <h1 className="font-display font-bold text-lg text-foreground">TrackPrep</h1>
         </div>
         <button
