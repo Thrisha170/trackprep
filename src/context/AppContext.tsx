@@ -1,8 +1,17 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
-import { Exam, Category, StudyEntry, DailyTarget, ProgressStats, calculateProgress, TargetType } from '@/types';
-
+import { Exam, Category, StudyEntry, DailyTarget, ProgressStats, calculateProgress, TargetType, getDefaultUnit } from '@/types';
+import { 
+  examSchema, 
+  categorySchema, 
+  studyEntrySchema, 
+  dailyTargetSchema,
+  examUpdateSchema,
+  categoryUpdateSchema,
+  validateInput,
+  safeValidateInput 
+} from '@/lib/validation-schemas';
 interface AppContextType {
   // Data
   exams: Exam[];
@@ -193,13 +202,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addExam = async (name: string, description?: string, targetDate?: string): Promise<Exam | null> => {
     if (!user) return null;
 
+    // Validate input with Zod
+    const validation = safeValidateInput(examSchema, { name, description, targetDate });
+    if (!validation.success) {
+      console.error('Exam validation failed:', validation.error);
+      return null;
+    }
+
+    const validatedData = validation.data!;
+
     const { data, error } = await supabase
       .from('exams')
       .insert({
         user_id: user.id,
-        name,
-        description: description || null,
-        target_date: targetDate || null,
+        name: validatedData.name,
+        description: validatedData.description || null,
+        target_date: validatedData.targetDate || null,
       })
       .select()
       .single();
@@ -225,12 +243,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const updateExam = async (id: string, updates: Partial<Exam>) => {
     if (!user) return;
 
+    // Validate input with Zod
+    const validation = safeValidateInput(examUpdateSchema, updates);
+    if (!validation.success) {
+      console.error('Exam update validation failed:', validation.error);
+      return;
+    }
+
+    const validatedData = validation.data!;
+
     const { error } = await supabase
       .from('exams')
       .update({
-        name: updates.name,
-        description: updates.description || null,
-        target_date: updates.targetDate || null,
+        name: validatedData.name,
+        description: validatedData.description || null,
+        target_date: validatedData.targetDate || null,
       })
       .eq('id', id);
 
@@ -266,17 +293,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addCategory = async (examId: string, category: Omit<Category, 'id' | 'examId' | 'completedValue'>) => {
     if (!user) return;
 
+    // Validate input with Zod
+    const validation = safeValidateInput(categorySchema, {
+      name: category.name,
+      targetType: category.targetType,
+      targetValue: category.targetValue,
+      unit: category.unit || getDefaultUnit(category.targetType),
+      color: category.color,
+    });
+    if (!validation.success) {
+      console.error('Category validation failed:', validation.error);
+      return;
+    }
+
+    const validatedData = validation.data!;
+
     const { data, error } = await supabase
       .from('categories')
       .insert({
         user_id: user.id,
         exam_id: examId,
-        name: category.name,
-        target_type: category.targetType,
-        target_value: category.targetValue,
+        name: validatedData.name,
+        target_type: validatedData.targetType,
+        target_value: validatedData.targetValue,
         completed_value: 0,
-        unit: category.unit,
-        color: category.color || null,
+        unit: validatedData.unit || getDefaultUnit(validatedData.targetType),
+        color: validatedData.color || null,
       })
       .select()
       .single();
@@ -307,15 +349,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const updateCategory = async (examId: string, categoryId: string, updates: Partial<Category>) => {
     if (!user) return;
 
+    // Validate input with Zod
+    const validation = safeValidateInput(categoryUpdateSchema, updates);
+    if (!validation.success) {
+      console.error('Category update validation failed:', validation.error);
+      return;
+    }
+
+    const validatedData = validation.data!;
+
     const { error } = await supabase
       .from('categories')
       .update({
-        name: updates.name,
-        target_type: updates.targetType,
-        target_value: updates.targetValue,
-        completed_value: updates.completedValue,
-        unit: updates.unit,
-        color: updates.color || null,
+        name: validatedData.name,
+        target_type: validatedData.targetType,
+        target_value: validatedData.targetValue,
+        completed_value: validatedData.completedValue,
+        unit: validatedData.unit,
+        color: validatedData.color || null,
       })
       .eq('id', categoryId);
 
@@ -362,17 +413,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addStudyEntry = async (entry: Omit<StudyEntry, 'id' | 'createdAt'>) => {
     if (!user) return;
 
+    // Validate input with Zod
+    const validation = safeValidateInput(studyEntrySchema, entry);
+    if (!validation.success) {
+      console.error('Study entry validation failed:', validation.error);
+      return;
+    }
+
+    const validatedData = validation.data!;
+
     const { data, error } = await supabase
       .from('study_entries')
       .insert({
         user_id: user.id,
-        exam_id: entry.examId,
-        category_id: entry.categoryId,
-        description: entry.description,
-        quantity: entry.quantity,
-        marks_obtained: entry.marks?.obtained || null,
-        marks_total: entry.marks?.total || null,
-        date: entry.date,
+        exam_id: validatedData.examId,
+        category_id: validatedData.categoryId,
+        description: validatedData.description,
+        quantity: validatedData.quantity,
+        marks_obtained: validatedData.marks?.obtained || null,
+        marks_total: validatedData.marks?.total || null,
+        date: validatedData.date,
       })
       .select()
       .single();
@@ -492,15 +552,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const setDailyTarget = async (examId: string, categoryId: string, targetValue: number) => {
     if (!user) return;
 
+    // Validate input with Zod
+    const validation = safeValidateInput(dailyTargetSchema, { examId, categoryId, targetValue });
+    if (!validation.success) {
+      console.error('Daily target validation failed:', validation.error);
+      return;
+    }
+
+    const validatedData = validation.data!;
+
     const today = new Date().toISOString().split('T')[0];
     const existingTarget = dailyTargets.find(
-      t => t.examId === examId && t.categoryId === categoryId && t.date === today
+      t => t.examId === validatedData.examId && t.categoryId === validatedData.categoryId && t.date === today
     );
 
     if (existingTarget) {
       const { error } = await supabase
         .from('daily_targets')
-        .update({ target_value: targetValue })
+        .update({ target_value: validatedData.targetValue })
         .eq('id', existingTarget.id);
 
       if (error) {
@@ -509,16 +578,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
 
       setDailyTargets(prev => prev.map(t =>
-        t.id === existingTarget.id ? { ...t, targetValue } : t
+        t.id === existingTarget.id ? { ...t, targetValue: validatedData.targetValue } : t
       ));
     } else {
       const { data, error } = await supabase
         .from('daily_targets')
         .insert({
           user_id: user.id,
-          exam_id: examId,
-          category_id: categoryId,
-          target_value: targetValue,
+          exam_id: validatedData.examId,
+          category_id: validatedData.categoryId,
+          target_value: validatedData.targetValue,
           completed_value: 0,
           date: today,
         })
