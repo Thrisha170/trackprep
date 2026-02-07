@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { getAuthErrorMessage } from '@/lib/auth-errors';
 import trackprepLogo from '@/assets/trackprep-logo.png';
 
 const SignIn = () => {
@@ -40,7 +41,7 @@ const SignIn = () => {
     if (error) {
       toast({
         title: "Sign in failed",
-        description: error.message,
+        description: getAuthErrorMessage(error, 'signin'),
         variant: "destructive",
       });
     } else {
