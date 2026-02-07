@@ -51,20 +51,20 @@ export const categorySchema = z.object({
 export type CategoryInput = z.infer<typeof categorySchema>;
 
 // Study entry validation schema
+// Note: quantity can be fractional for time entries (minutes converted to hours)
 export const studyEntrySchema = z.object({
   examId: z.string().uuid('Invalid exam ID'),
   categoryId: z.string().uuid('Invalid category ID'),
   description: nonEmptyTrimmedString
     .max(500, 'Description must be 500 characters or less'),
   quantity: z.number()
-    .int('Quantity must be a whole number')
-    .min(1, 'Quantity must be at least 1')
+    .min(0.0001, 'Quantity must be greater than 0')
     .max(10000, 'Quantity is too large'),
   date: z.string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format'),
   marks: z.object({
-    obtained: z.number().min(0, 'Marks obtained must be 0 or greater').max(100000, 'Marks value is too large'),
-    total: z.number().min(1, 'Total marks must be at least 1').max(100000, 'Marks value is too large'),
+    obtained: z.number().int('Marks must be a whole number').min(0, 'Marks obtained must be 0 or greater').max(100000, 'Marks value is too large'),
+    total: z.number().int('Marks must be a whole number').min(1, 'Total marks must be at least 1').max(100000, 'Marks value is too large'),
   }).optional().refine(
     marks => !marks || marks.obtained <= marks.total,
     'Obtained marks cannot exceed total marks'

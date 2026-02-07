@@ -14,13 +14,49 @@ const CHART_COLORS = [
   'hsl(280 50% 55%)',
 ];
 
+// Custom tooltip component for better dark mode visibility
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
+        <p className="text-sm font-medium text-foreground mb-1">{label}</p>
+        {payload.map((entry: any, index: number) => (
+          <p key={index} className="text-sm text-foreground">
+            <span className="font-medium" style={{ color: entry.color }}>{entry.name}: </span>
+            {typeof entry.value === 'number' ? entry.value.toFixed(1) : entry.value}
+            {entry.name === 'Progress' && '%'}
+          </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
+
+// Custom legend with better visibility
+const CustomLegend = ({ payload }: any) => {
+  return (
+    <div className="flex flex-wrap justify-center gap-3 mt-4">
+      {payload?.map((entry: any, index: number) => (
+        <div key={index} className="flex items-center gap-1.5">
+          <div 
+            className="w-3 h-3 rounded-full" 
+            style={{ backgroundColor: entry.color }}
+          />
+          <span className="text-xs text-foreground font-medium">{entry.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 export default function Analytics() {
   const { exams, getExamProgress, getOverallProgress, studyEntries } = useApp();
   const overallProgress = getOverallProgress();
 
   // Prepare exam progress data for bar chart
   const examProgressData = exams.map(exam => ({
-    name: exam.name.length > 12 ? exam.name.slice(0, 12) + '...' : exam.name,
+    name: exam.name.length > 10 ? exam.name.slice(0, 10) + '...' : exam.name,
     progress: getExamProgress(exam.id),
     fullName: exam.name,
   }));
@@ -61,12 +97,12 @@ export default function Analytics() {
 
         {exams.length === 0 ? (
           <Card className="card-elevated">
-            <CardContent className="p-12 text-center">
-              <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mx-auto mb-6">
-                <BarChart3 className="w-10 h-10 text-muted-foreground" />
+            <CardContent className="p-8 sm:p-12 text-center">
+              <div className="w-16 sm:w-20 h-16 sm:h-20 rounded-full bg-muted flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                <BarChart3 className="w-8 sm:w-10 h-8 sm:h-10 text-muted-foreground" />
               </div>
-              <h2 className="text-xl font-display font-semibold mb-2">No data yet</h2>
-              <p className="text-muted-foreground max-w-md mx-auto">
+              <h2 className="text-lg sm:text-xl font-display font-semibold mb-2">No data yet</h2>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">
                 Start adding exams and logging study sessions to see your progress analytics.
               </p>
             </CardContent>
@@ -76,7 +112,7 @@ export default function Analytics() {
             {/* Overall Progress */}
             <div className="grid gap-4 lg:grid-cols-3">
               <Card className="card-elevated lg:col-span-1">
-                <CardHeader>
+                <CardHeader className="pb-2">
                   <CardTitle className="text-base font-display flex items-center gap-2">
                     <Target className="w-4 h-4 text-primary" />
                     Overall Progress
@@ -85,11 +121,11 @@ export default function Analytics() {
                 <CardContent className="flex flex-col items-center justify-center py-4">
                   <CircularProgress 
                     value={overallProgress} 
-                    size={140} 
-                    strokeWidth={12} 
+                    size={120} 
+                    strokeWidth={10} 
                     label="complete"
                   />
-                  <p className="text-sm text-muted-foreground mt-4 text-center">
+                  <p className="text-sm text-muted-foreground mt-4 text-center px-2">
                     {overallProgress >= 80 
                       ? "Excellent progress! Keep it up!"
                       : overallProgress >= 50 
@@ -101,33 +137,29 @@ export default function Analytics() {
               </Card>
 
               <Card className="card-elevated lg:col-span-2">
-                <CardHeader>
+                <CardHeader className="pb-2">
                   <CardTitle className="text-base font-display flex items-center gap-2">
                     <TrendingUp className="w-4 h-4 text-primary" />
                     Study Activity (Last 7 Days)
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-[200px]">
+                  <div className="h-[180px] sm:h-[200px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={entriesByDay}>
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                      <BarChart data={entriesByDay} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                         <XAxis 
                           dataKey="date" 
-                          tick={{ fontSize: 12 }}
-                          className="text-muted-foreground"
+                          tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }}
+                          stroke="hsl(var(--muted-foreground))"
+                          tickLine={{ stroke: 'hsl(var(--border))' }}
                         />
                         <YAxis 
-                          tick={{ fontSize: 12 }}
-                          className="text-muted-foreground"
+                          tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }}
+                          stroke="hsl(var(--muted-foreground))"
+                          tickLine={{ stroke: 'hsl(var(--border))' }}
                         />
-                        <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: 'hsl(var(--card))',
-                            border: '1px solid hsl(var(--border))',
-                            borderRadius: '8px',
-                          }}
-                        />
+                        <Tooltip content={<CustomTooltip />} />
                         <Bar 
                           dataKey="entries" 
                           fill="hsl(var(--primary))" 
@@ -144,36 +176,38 @@ export default function Analytics() {
             {/* Exam Progress */}
             {examProgressData.length > 0 && (
               <Card className="card-elevated">
-                <CardHeader>
+                <CardHeader className="pb-2">
                   <CardTitle className="text-base font-display flex items-center gap-2">
                     <BarChart3 className="w-4 h-4 text-primary" />
                     Progress by Exam
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-[250px]">
+                  <div className="h-[200px] sm:h-[250px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={examProgressData} layout="vertical">
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                      <BarChart 
+                        data={examProgressData} 
+                        layout="vertical"
+                        margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                         <XAxis 
                           type="number" 
                           domain={[0, 100]}
-                          tick={{ fontSize: 12 }}
-                          className="text-muted-foreground"
+                          tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }}
+                          stroke="hsl(var(--muted-foreground))"
+                          tickLine={{ stroke: 'hsl(var(--border))' }}
                         />
                         <YAxis 
                           dataKey="name" 
                           type="category" 
-                          width={100}
-                          tick={{ fontSize: 12 }}
-                          className="text-muted-foreground"
+                          width={80}
+                          tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }}
+                          stroke="hsl(var(--muted-foreground))"
+                          tickLine={{ stroke: 'hsl(var(--border))' }}
                         />
                         <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: 'hsl(var(--card))',
-                            border: '1px solid hsl(var(--border))',
-                            borderRadius: '8px',
-                          }}
+                          content={<CustomTooltip />}
                           formatter={(value: number, name: string, props: any) => [
                             `${value}%`,
                             props.payload.fullName
@@ -202,7 +236,7 @@ export default function Analytics() {
                   return (
                     <Card key={exam.id} className="card-elevated">
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-base font-display">{exam.name}</CardTitle>
+                        <CardTitle className="text-base font-display truncate">{exam.name}</CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-3">
                         {exam.categories.map(cat => {
@@ -210,8 +244,8 @@ export default function Analytics() {
                           return (
                             <div key={cat.id}>
                               <div className="flex justify-between text-sm mb-1">
-                                <span className="text-muted-foreground truncate mr-2">{cat.name}</span>
-                                <span className="font-medium">{catProgress}%</span>
+                                <span className="text-foreground truncate mr-2">{cat.name}</span>
+                                <span className="font-semibold text-foreground">{catProgress}%</span>
                               </div>
                               <ProgressBar value={cat.completedValue} max={cat.targetValue} size="sm" />
                             </div>
@@ -227,23 +261,23 @@ export default function Analytics() {
             {/* Distribution Pie Chart */}
             {allCategories.length > 0 && (
               <Card className="card-elevated">
-                <CardHeader>
+                <CardHeader className="pb-2">
                   <CardTitle className="text-base font-display">Study Distribution</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-[300px]">
+                  <div className="h-[280px] sm:h-[320px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
+                      <PieChart margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
                         <Pie
                           data={allCategories}
                           cx="50%"
-                          cy="50%"
+                          cy="45%"
                           labelLine={false}
-                          outerRadius={100}
+                          outerRadius={80}
                           fill="#8884d8"
                           dataKey="value"
                           label={({ name, percent }) => 
-                            percent > 0.05 ? `${name} (${(percent * 100).toFixed(0)}%)` : ''
+                            percent > 0.08 ? `${(percent * 100).toFixed(0)}%` : ''
                           }
                         >
                           {allCategories.map((_, index) => (
@@ -253,18 +287,8 @@ export default function Analytics() {
                             />
                           ))}
                         </Pie>
-                        <Tooltip
-                          contentStyle={{ 
-                            backgroundColor: 'hsl(var(--card))',
-                            border: '1px solid hsl(var(--border))',
-                            borderRadius: '8px',
-                          }}
-                          formatter={(value: number, name: string) => [
-                            value.toFixed(1),
-                            name
-                          ]}
-                        />
-                        <Legend />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Legend content={<CustomLegend />} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>

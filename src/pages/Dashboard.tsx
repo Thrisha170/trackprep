@@ -34,7 +34,7 @@ export default function Dashboard() {
 
   return (
     <AppLayout>
-      <div className="p-4 lg:p-8 max-w-6xl mx-auto space-y-6">
+      <div className="p-4 lg:p-8 max-w-6xl mx-auto space-y-6 pb-32 lg:pb-8">
         {/* Header */}
         <header className="space-y-1">
           <p className="text-sm text-muted-foreground">{todayStr}</p>
