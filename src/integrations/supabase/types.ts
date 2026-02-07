@@ -14,7 +14,182 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      categories: {
+        Row: {
+          color: string | null
+          completed_value: number
+          created_at: string
+          exam_id: string
+          id: string
+          name: string
+          target_type: string
+          target_value: number
+          unit: string
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          completed_value?: number
+          created_at?: string
+          exam_id: string
+          id?: string
+          name: string
+          target_type: string
+          target_value?: number
+          unit?: string
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          completed_value?: number
+          created_at?: string
+          exam_id?: string
+          id?: string
+          name?: string
+          target_type?: string
+          target_value?: number
+          unit?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "categories_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      daily_targets: {
+        Row: {
+          category_id: string
+          completed_value: number
+          created_at: string
+          date: string
+          exam_id: string
+          id: string
+          target_value: number
+          user_id: string
+        }
+        Insert: {
+          category_id: string
+          completed_value?: number
+          created_at?: string
+          date: string
+          exam_id: string
+          id?: string
+          target_value: number
+          user_id: string
+        }
+        Update: {
+          category_id?: string
+          completed_value?: number
+          created_at?: string
+          date?: string
+          exam_id?: string
+          id?: string
+          target_value?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_targets_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_targets_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      exams: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          target_date: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          target_date?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          target_date?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      study_entries: {
+        Row: {
+          category_id: string
+          created_at: string
+          date: string
+          description: string
+          exam_id: string
+          id: string
+          marks_obtained: number | null
+          marks_total: number | null
+          quantity: number
+          user_id: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          date: string
+          description: string
+          exam_id: string
+          id?: string
+          marks_obtained?: number | null
+          marks_total?: number | null
+          quantity: number
+          user_id: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          date?: string
+          description?: string
+          exam_id?: string
+          id?: string
+          marks_obtained?: number | null
+          marks_total?: number | null
+          quantity?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "study_entries_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "study_entries_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

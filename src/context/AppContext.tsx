@@ -1,33 +1,31 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Exam, Category, StudyEntry, DailyTarget, ProgressStats, calculateProgress } from '@/types';
-
-// Simple ID generator (no external dependency needed)
-const generateId = (): string => {
-  return Math.random().toString(36).substring(2) + Date.now().toString(36);
-};
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './AuthContext';
+import { Exam, Category, StudyEntry, DailyTarget, ProgressStats, calculateProgress, TargetType } from '@/types';
 
 interface AppContextType {
   // Data
   exams: Exam[];
   studyEntries: StudyEntry[];
   dailyTargets: DailyTarget[];
+  loading: boolean;
   
   // Exam operations
-  addExam: (name: string, description?: string, targetDate?: string) => Exam;
-  updateExam: (id: string, updates: Partial<Exam>) => void;
-  deleteExam: (id: string) => void;
+  addExam: (name: string, description?: string, targetDate?: string) => Promise<Exam | null>;
+  updateExam: (id: string, updates: Partial<Exam>) => Promise<void>;
+  deleteExam: (id: string) => Promise<void>;
   
   // Category operations
-  addCategory: (examId: string, category: Omit<Category, 'id' | 'examId' | 'completedValue'>) => void;
-  updateCategory: (examId: string, categoryId: string, updates: Partial<Category>) => void;
-  deleteCategory: (examId: string, categoryId: string) => void;
+  addCategory: (examId: string, category: Omit<Category, 'id' | 'examId' | 'completedValue'>) => Promise<void>;
+  updateCategory: (examId: string, categoryId: string, updates: Partial<Category>) => Promise<void>;
+  deleteCategory: (examId: string, categoryId: string) => Promise<void>;
   
   // Study entry operations
-  addStudyEntry: (entry: Omit<StudyEntry, 'id' | 'createdAt'>) => void;
-  deleteStudyEntry: (id: string) => void;
+  addStudyEntry: (entry: Omit<StudyEntry, 'id' | 'createdAt'>) => Promise<void>;
+  deleteStudyEntry: (id: string) => Promise<void>;
   
   // Daily target operations
-  setDailyTarget: (examId: string, categoryId: string, targetValue: number) => void;
+  setDailyTarget: (examId: string, categoryId: string, targetValue: number) => Promise<void>;
   getDailyTargets: (date?: string) => DailyTarget[];
   
   // Statistics
@@ -40,58 +38,37 @@ interface AppContextType {
   // Theme
   theme: 'light' | 'dark';
   toggleTheme: () => void;
+  
+  // Refresh data
+  refreshData: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// Storage keys
-const STORAGE_KEYS = {
-  exams: 'trackprep_exams',
-  entries: 'trackprep_entries',
-  dailyTargets: 'trackprep_daily_targets',
-  theme: 'trackprep_theme',
-};
+// Storage keys for theme only (data now in Supabase)
+const THEME_STORAGE_KEY = 'trackprep_theme';
 
-// Load from localStorage
-const loadFromStorage = <T,>(key: string, defaultValue: T): T => {
+// Load theme from localStorage
+const loadTheme = (): 'light' | 'dark' => {
   try {
-    const stored = localStorage.getItem(key);
-    return stored ? JSON.parse(stored) : defaultValue;
+    const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    return stored === 'dark' ? 'dark' : 'light';
   } catch {
-    return defaultValue;
-  }
-};
-
-// Save to localStorage
-const saveToStorage = <T,>(key: string, value: T): void => {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch (e) {
-    console.error('Failed to save to storage:', e);
+    return 'light';
   }
 };
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [exams, setExams] = useState<Exam[]>(() => loadFromStorage(STORAGE_KEYS.exams, []));
-  const [studyEntries, setStudyEntries] = useState<StudyEntry[]>(() => loadFromStorage(STORAGE_KEYS.entries, []));
-  const [dailyTargets, setDailyTargets] = useState<DailyTarget[]>(() => loadFromStorage(STORAGE_KEYS.dailyTargets, []));
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => loadFromStorage(STORAGE_KEYS.theme, 'light'));
+  const { user } = useAuth();
+  const [exams, setExams] = useState<Exam[]>([]);
+  const [studyEntries, setStudyEntries] = useState<StudyEntry[]>([]);
+  const [dailyTargets, setDailyTargets] = useState<DailyTarget[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [theme, setTheme] = useState<'light' | 'dark'>(loadTheme);
 
-  // Persist data to localStorage
+  // Apply theme to document
   useEffect(() => {
-    saveToStorage(STORAGE_KEYS.exams, exams);
-  }, [exams]);
-
-  useEffect(() => {
-    saveToStorage(STORAGE_KEYS.entries, studyEntries);
-  }, [studyEntries]);
-
-  useEffect(() => {
-    saveToStorage(STORAGE_KEYS.dailyTargets, dailyTargets);
-  }, [dailyTargets]);
-
-  useEffect(() => {
-    saveToStorage(STORAGE_KEYS.theme, theme);
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
 
@@ -104,53 +81,254 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
   };
 
+  // Fetch all data from Supabase
+  const fetchData = useCallback(async () => {
+    if (!user) {
+      setExams([]);
+      setStudyEntries([]);
+      setDailyTargets([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Fetch exams with their categories
+      const { data: examsData, error: examsError } = await supabase
+        .from('exams')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (examsError) throw examsError;
+
+      const { data: categoriesData, error: categoriesError } = await supabase
+        .from('categories')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (categoriesError) throw categoriesError;
+
+      // Map categories to exams
+      const examsWithCategories: Exam[] = (examsData || []).map(exam => ({
+        id: exam.id,
+        name: exam.name,
+        description: exam.description || undefined,
+        targetDate: exam.target_date || undefined,
+        createdAt: exam.created_at,
+        categories: (categoriesData || [])
+          .filter(cat => cat.exam_id === exam.id)
+          .map(cat => ({
+            id: cat.id,
+            examId: cat.exam_id,
+            name: cat.name,
+            targetType: cat.target_type as TargetType,
+            targetValue: Number(cat.target_value),
+            completedValue: Number(cat.completed_value),
+            unit: cat.unit,
+            color: cat.color || undefined,
+          })),
+      }));
+
+      setExams(examsWithCategories);
+
+      // Fetch study entries
+      const { data: entriesData, error: entriesError } = await supabase
+        .from('study_entries')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (entriesError) throw entriesError;
+
+      const entries: StudyEntry[] = (entriesData || []).map(entry => ({
+        id: entry.id,
+        examId: entry.exam_id,
+        categoryId: entry.category_id,
+        description: entry.description,
+        quantity: Number(entry.quantity),
+        marks: entry.marks_obtained !== null && entry.marks_total !== null
+          ? { obtained: Number(entry.marks_obtained), total: Number(entry.marks_total) }
+          : undefined,
+        date: entry.date,
+        createdAt: entry.created_at,
+      }));
+
+      setStudyEntries(entries);
+
+      // Fetch daily targets
+      const { data: targetsData, error: targetsError } = await supabase
+        .from('daily_targets')
+        .select('*')
+        .order('date', { ascending: false });
+
+      if (targetsError) throw targetsError;
+
+      const targets: DailyTarget[] = (targetsData || []).map(target => ({
+        id: target.id,
+        examId: target.exam_id,
+        categoryId: target.category_id,
+        targetValue: Number(target.target_value),
+        completedValue: Number(target.completed_value),
+        date: target.date,
+      }));
+
+      setDailyTargets(targets);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  // Refresh data function
+  const refreshData = useCallback(async () => {
+    await fetchData();
+  }, [fetchData]);
+
+  // Load data when user changes
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
   // Exam operations
-  const addExam = (name: string, description?: string, targetDate?: string): Exam => {
+  const addExam = async (name: string, description?: string, targetDate?: string): Promise<Exam | null> => {
+    if (!user) return null;
+
+    const { data, error } = await supabase
+      .from('exams')
+      .insert({
+        user_id: user.id,
+        name,
+        description: description || null,
+        target_date: targetDate || null,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding exam:', error);
+      return null;
+    }
+
     const newExam: Exam = {
-      id: generateId(),
-      name,
-      description,
-      targetDate,
-      createdAt: new Date().toISOString(),
+      id: data.id,
+      name: data.name,
+      description: data.description || undefined,
+      targetDate: data.target_date || undefined,
+      createdAt: data.created_at,
       categories: [],
     };
-    setExams(prev => [...prev, newExam]);
+
+    setExams(prev => [newExam, ...prev]);
     return newExam;
   };
 
-  const updateExam = (id: string, updates: Partial<Exam>) => {
-    setExams(prev => prev.map(exam => 
+  const updateExam = async (id: string, updates: Partial<Exam>) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('exams')
+      .update({
+        name: updates.name,
+        description: updates.description || null,
+        target_date: updates.targetDate || null,
+      })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error updating exam:', error);
+      return;
+    }
+
+    setExams(prev => prev.map(exam =>
       exam.id === id ? { ...exam, ...updates } : exam
     ));
   };
 
-  const deleteExam = (id: string) => {
+  const deleteExam = async (id: string) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('exams')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting exam:', error);
+      return;
+    }
+
     setExams(prev => prev.filter(exam => exam.id !== id));
     setStudyEntries(prev => prev.filter(entry => entry.examId !== id));
     setDailyTargets(prev => prev.filter(target => target.examId !== id));
   };
 
   // Category operations
-  const addCategory = (examId: string, category: Omit<Category, 'id' | 'examId' | 'completedValue'>) => {
+  const addCategory = async (examId: string, category: Omit<Category, 'id' | 'examId' | 'completedValue'>) => {
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from('categories')
+      .insert({
+        user_id: user.id,
+        exam_id: examId,
+        name: category.name,
+        target_type: category.targetType,
+        target_value: category.targetValue,
+        completed_value: 0,
+        unit: category.unit,
+        color: category.color || null,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding category:', error);
+      return;
+    }
+
     const newCategory: Category = {
-      ...category,
-      id: generateId(),
-      examId,
-      completedValue: 0,
+      id: data.id,
+      examId: data.exam_id,
+      name: data.name,
+      targetType: data.target_type as TargetType,
+      targetValue: Number(data.target_value),
+      completedValue: Number(data.completed_value),
+      unit: data.unit,
+      color: data.color || undefined,
     };
-    setExams(prev => prev.map(exam => 
-      exam.id === examId 
+
+    setExams(prev => prev.map(exam =>
+      exam.id === examId
         ? { ...exam, categories: [...exam.categories, newCategory] }
         : exam
     ));
   };
 
-  const updateCategory = (examId: string, categoryId: string, updates: Partial<Category>) => {
-    setExams(prev => prev.map(exam => 
-      exam.id === examId 
+  const updateCategory = async (examId: string, categoryId: string, updates: Partial<Category>) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('categories')
+      .update({
+        name: updates.name,
+        target_type: updates.targetType,
+        target_value: updates.targetValue,
+        completed_value: updates.completedValue,
+        unit: updates.unit,
+        color: updates.color || null,
+      })
+      .eq('id', categoryId);
+
+    if (error) {
+      console.error('Error updating category:', error);
+      return;
+    }
+
+    setExams(prev => prev.map(exam =>
+      exam.id === examId
         ? {
             ...exam,
-            categories: exam.categories.map(cat => 
+            categories: exam.categories.map(cat =>
               cat.id === categoryId ? { ...cat, ...updates } : cat
             )
           }
@@ -158,9 +336,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ));
   };
 
-  const deleteCategory = (examId: string, categoryId: string) => {
-    setExams(prev => prev.map(exam => 
-      exam.id === examId 
+  const deleteCategory = async (examId: string, categoryId: string) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('categories')
+      .delete()
+      .eq('id', categoryId);
+
+    if (error) {
+      console.error('Error deleting category:', error);
+      return;
+    }
+
+    setExams(prev => prev.map(exam =>
+      exam.id === examId
         ? { ...exam, categories: exam.categories.filter(cat => cat.id !== categoryId) }
         : exam
     ));
@@ -169,97 +359,188 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   // Study entry operations
-  const addStudyEntry = (entry: Omit<StudyEntry, 'id' | 'createdAt'>) => {
+  const addStudyEntry = async (entry: Omit<StudyEntry, 'id' | 'createdAt'>) => {
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from('study_entries')
+      .insert({
+        user_id: user.id,
+        exam_id: entry.examId,
+        category_id: entry.categoryId,
+        description: entry.description,
+        quantity: entry.quantity,
+        marks_obtained: entry.marks?.obtained || null,
+        marks_total: entry.marks?.total || null,
+        date: entry.date,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding study entry:', error);
+      return;
+    }
+
     const newEntry: StudyEntry = {
-      ...entry,
-      id: generateId(),
-      createdAt: new Date().toISOString(),
+      id: data.id,
+      examId: data.exam_id,
+      categoryId: data.category_id,
+      description: data.description,
+      quantity: Number(data.quantity),
+      marks: data.marks_obtained !== null && data.marks_total !== null
+        ? { obtained: Number(data.marks_obtained), total: Number(data.marks_total) }
+        : undefined,
+      date: data.date,
+      createdAt: data.created_at,
     };
-    
-    setStudyEntries(prev => [...prev, newEntry]);
-    
+
+    setStudyEntries(prev => [newEntry, ...prev]);
+
     // Update category progress
-    setExams(prev => prev.map(exam => {
-      if (exam.id === entry.examId) {
-        return {
-          ...exam,
-          categories: exam.categories.map(cat => {
-            if (cat.id === entry.categoryId) {
-              return { ...cat, completedValue: cat.completedValue + entry.quantity };
-            }
-            return cat;
-          })
-        };
-      }
-      return exam;
-    }));
+    const category = exams.flatMap(e => e.categories).find(c => c.id === entry.categoryId);
+    if (category) {
+      const newCompletedValue = category.completedValue + entry.quantity;
+      await supabase
+        .from('categories')
+        .update({ completed_value: newCompletedValue })
+        .eq('id', entry.categoryId);
+
+      setExams(prev => prev.map(exam => {
+        if (exam.id === entry.examId) {
+          return {
+            ...exam,
+            categories: exam.categories.map(cat => {
+              if (cat.id === entry.categoryId) {
+                return { ...cat, completedValue: newCompletedValue };
+              }
+              return cat;
+            })
+          };
+        }
+        return exam;
+      }));
+    }
 
     // Update daily target progress
     const today = new Date().toISOString().split('T')[0];
     if (entry.date === today) {
-      setDailyTargets(prev => {
-        const existingTarget = prev.find(
-          t => t.examId === entry.examId && t.categoryId === entry.categoryId && t.date === today
-        );
-        if (existingTarget) {
-          return prev.map(t => 
-            t.id === existingTarget.id 
-              ? { ...t, completedValue: t.completedValue + entry.quantity }
-              : t
-          );
-        }
-        return prev;
-      });
+      const existingTarget = dailyTargets.find(
+        t => t.examId === entry.examId && t.categoryId === entry.categoryId && t.date === today
+      );
+      if (existingTarget) {
+        const newCompletedValue = existingTarget.completedValue + entry.quantity;
+        await supabase
+          .from('daily_targets')
+          .update({ completed_value: newCompletedValue })
+          .eq('id', existingTarget.id);
+
+        setDailyTargets(prev => prev.map(t =>
+          t.id === existingTarget.id
+            ? { ...t, completedValue: newCompletedValue }
+            : t
+        ));
+      }
     }
   };
 
-  const deleteStudyEntry = (id: string) => {
+  const deleteStudyEntry = async (id: string) => {
+    if (!user) return;
+
     const entry = studyEntries.find(e => e.id === id);
     if (!entry) return;
 
+    const { error } = await supabase
+      .from('study_entries')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting study entry:', error);
+      return;
+    }
+
     // Subtract from category progress
-    setExams(prev => prev.map(exam => {
-      if (exam.id === entry.examId) {
-        return {
-          ...exam,
-          categories: exam.categories.map(cat => {
-            if (cat.id === entry.categoryId) {
-              return { ...cat, completedValue: Math.max(0, cat.completedValue - entry.quantity) };
-            }
-            return cat;
-          })
-        };
-      }
-      return exam;
-    }));
+    const category = exams.flatMap(e => e.categories).find(c => c.id === entry.categoryId);
+    if (category) {
+      const newCompletedValue = Math.max(0, category.completedValue - entry.quantity);
+      await supabase
+        .from('categories')
+        .update({ completed_value: newCompletedValue })
+        .eq('id', entry.categoryId);
+
+      setExams(prev => prev.map(exam => {
+        if (exam.id === entry.examId) {
+          return {
+            ...exam,
+            categories: exam.categories.map(cat => {
+              if (cat.id === entry.categoryId) {
+                return { ...cat, completedValue: newCompletedValue };
+              }
+              return cat;
+            })
+          };
+        }
+        return exam;
+      }));
+    }
 
     setStudyEntries(prev => prev.filter(e => e.id !== id));
   };
 
   // Daily target operations
-  const setDailyTarget = (examId: string, categoryId: string, targetValue: number) => {
+  const setDailyTarget = async (examId: string, categoryId: string, targetValue: number) => {
+    if (!user) return;
+
     const today = new Date().toISOString().split('T')[0];
-    
-    setDailyTargets(prev => {
-      const existingIndex = prev.findIndex(
-        t => t.examId === examId && t.categoryId === categoryId && t.date === today
-      );
-      
-      if (existingIndex >= 0) {
-        const updated = [...prev];
-        updated[existingIndex] = { ...updated[existingIndex], targetValue };
-        return updated;
+    const existingTarget = dailyTargets.find(
+      t => t.examId === examId && t.categoryId === categoryId && t.date === today
+    );
+
+    if (existingTarget) {
+      const { error } = await supabase
+        .from('daily_targets')
+        .update({ target_value: targetValue })
+        .eq('id', existingTarget.id);
+
+      if (error) {
+        console.error('Error updating daily target:', error);
+        return;
       }
-      
-      return [...prev, {
-        id: generateId(),
-        examId,
-        categoryId,
-        targetValue,
-        completedValue: 0,
-        date: today,
-      }];
-    });
+
+      setDailyTargets(prev => prev.map(t =>
+        t.id === existingTarget.id ? { ...t, targetValue } : t
+      ));
+    } else {
+      const { data, error } = await supabase
+        .from('daily_targets')
+        .insert({
+          user_id: user.id,
+          exam_id: examId,
+          category_id: categoryId,
+          target_value: targetValue,
+          completed_value: 0,
+          date: today,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating daily target:', error);
+        return;
+      }
+
+      const newTarget: DailyTarget = {
+        id: data.id,
+        examId: data.exam_id,
+        categoryId: data.category_id,
+        targetValue: Number(data.target_value),
+        completedValue: Number(data.completed_value),
+        date: data.date,
+      };
+
+      setDailyTargets(prev => [...prev, newTarget]);
+    }
   };
 
   const getDailyTargets = (date?: string): DailyTarget[] => {
@@ -267,35 +548,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return dailyTargets.filter(t => t.date === targetDate);
   };
 
-  // Statistics
+  // Statistics (these remain as local calculations)
   const getExamProgress = (examId: string): number => {
     const exam = exams.find(e => e.id === examId);
     if (!exam || exam.categories.length === 0) return 0;
-    
+
     const totalProgress = exam.categories.reduce((sum, cat) => {
       return sum + calculateProgress(cat.completedValue, cat.targetValue);
     }, 0);
-    
+
     return Math.round(totalProgress / exam.categories.length);
   };
 
   const getCategoryProgress = (examId: string, categoryId: string): number => {
     const exam = exams.find(e => e.id === examId);
     if (!exam) return 0;
-    
+
     const category = exam.categories.find(c => c.id === categoryId);
     if (!category) return 0;
-    
+
     return calculateProgress(category.completedValue, category.targetValue);
   };
 
   const getOverallProgress = (): number => {
     if (exams.length === 0) return 0;
-    
+
     const totalProgress = exams.reduce((sum, exam) => {
       return sum + getExamProgress(exam.id);
     }, 0);
-    
+
     return Math.round(totalProgress / exams.length);
   };
 
@@ -306,7 +587,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const getStats = (): ProgressStats => {
     const todayEntries = getTodayEntries();
-    
+
     return {
       totalExams: exams.length,
       totalCategories: exams.reduce((sum, exam) => sum + exam.categories.length, 0),
@@ -322,6 +603,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       exams,
       studyEntries,
       dailyTargets,
+      loading,
       addExam,
       updateExam,
       deleteExam,
@@ -339,6 +621,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       getStats,
       theme,
       toggleTheme,
+      refreshData,
     }}>
       {children}
     </AppContext.Provider>
