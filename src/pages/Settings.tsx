@@ -1,15 +1,19 @@
 import { useApp } from '@/context/AppContext';
+import { useAuth } from '@/context/AuthContext';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Moon, Sun, Trash2, Download, Target, Heart } from 'lucide-react';
+import { Moon, Sun, Trash2, Download, Target, Heart, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 export default function Settings() {
   const { theme, toggleTheme, exams, studyEntries } = useApp();
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
   const handleExportData = () => {
     const data = {
@@ -31,11 +35,10 @@ export default function Settings() {
     toast.success('Data exported successfully');
   };
 
-  const handleClearData = () => {
-    if (window.confirm('Are you sure you want to clear all data? This cannot be undone.')) {
-      localStorage.clear();
-      window.location.reload();
-    }
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success('Signed out successfully');
+    navigate('/signin');
   };
 
   return (
@@ -98,21 +101,45 @@ export default function Settings() {
                 Export
               </Button>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Account */}
+        <Card className="card-elevated">
+          <CardHeader>
+            <CardTitle className="text-base font-display">Account</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {user && (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <span className="text-sm font-medium text-primary">
+                      {user.email?.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">{user.email}</p>
+                    <p className="text-xs text-muted-foreground">Signed in</p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <Separator />
 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <Trash2 className="w-5 h-5 text-destructive" />
+                <LogOut className="w-5 h-5 text-muted-foreground" />
                 <div>
-                  <p className="font-medium">Clear All Data</p>
+                  <p className="font-medium">Sign Out</p>
                   <p className="text-xs text-muted-foreground">
-                    Delete all exams and study entries
+                    Log out of your account
                   </p>
                 </div>
               </div>
-              <Button variant="destructive" size="sm" onClick={handleClearData}>
-                Clear
+              <Button variant="outline" size="sm" onClick={handleSignOut}>
+                Sign Out
               </Button>
             </div>
           </CardContent>
