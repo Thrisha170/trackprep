@@ -8,8 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PenLine, Check, BookOpen } from 'lucide-react';
+import { PenLine, Check, BookOpen, Clock } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatTime } from '@/types';
 
 export default function LogStudy() {
   const [searchParams] = useSearchParams();
@@ -20,6 +21,7 @@ export default function LogStudy() {
   const [categoryId, setCategoryId] = useState(searchParams.get('category') || '');
   const [description, setDescription] = useState('');
   const [quantity, setQuantity] = useState('');
+  const [timeMinutes, setTimeMinutes] = useState('');
   const [marksObtained, setMarksObtained] = useState('');
   const [marksTotal, setMarksTotal] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -28,6 +30,7 @@ export default function LogStudy() {
   const selectedExam = exams.find(e => e.id === examId);
   const selectedCategory = selectedExam?.categories.find(c => c.id === categoryId);
   const showMarks = selectedCategory?.targetType === 'scores';
+  const isTimeCategory = selectedCategory?.targetType === 'time';
 
   // Reset category when exam changes
   useEffect(() => {
@@ -36,36 +39,64 @@ export default function LogStudy() {
     }
   }, [examId, selectedExam, categoryId]);
 
+  // Convert minutes to hours for storage (internal representation)
+  const getQuantityValue = (): number => {
+    if (isTimeCategory) {
+      const minutes = parseInt(timeMinutes, 10);
+      if (isNaN(minutes) || minutes < 1) return 0;
+      // Store as fractional hours (e.g., 90 minutes = 1.5 hours)
+      return parseFloat((minutes / 60).toFixed(4));
+    }
+    return parseInt(quantity, 10);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const quantityInt = parseInt(quantity, 10);
-    if (!examId || !categoryId || !description.trim() || !quantity || isNaN(quantityInt) || quantityInt < 1) {
-      if (quantity && (isNaN(quantityInt) || quantityInt < 1)) {
-        toast.error('Please enter a whole number greater than 0');
+    
+    if (isTimeCategory) {
+      const minutes = parseInt(timeMinutes, 10);
+      if (!examId || !categoryId || !description.trim() || !timeMinutes || isNaN(minutes) || minutes < 1) {
+        if (timeMinutes && (isNaN(minutes) || minutes < 1)) {
+          toast.error('Please enter at least 1 minute');
+        }
+        return;
       }
-      return;
+    } else {
+      const quantityInt = parseInt(quantity, 10);
+      if (!examId || !categoryId || !description.trim() || !quantity || isNaN(quantityInt) || quantityInt < 1) {
+        if (quantity && (isNaN(quantityInt) || quantityInt < 1)) {
+          toast.error('Please enter a whole number greater than 0');
+        }
+        return;
+      }
     }
 
     setIsSubmitting(true);
+    const quantityValue = getQuantityValue();
 
     addStudyEntry({
       examId,
       categoryId,
       description: description.trim(),
-      quantity: quantityInt,
+      quantity: quantityValue,
       date,
       marks: showMarks && marksObtained && marksTotal 
-        ? { obtained: parseFloat(marksObtained), total: parseFloat(marksTotal) }
+        ? { obtained: parseInt(marksObtained, 10), total: parseInt(marksTotal, 10) }
         : undefined,
     });
 
+    const displayValue = isTimeCategory 
+      ? formatTime(quantityValue)
+      : `${quantity} ${selectedCategory?.unit}`;
+
     toast.success('Study session logged!', {
-      description: `Added ${quantity} ${selectedCategory?.unit} to ${selectedCategory?.name}`,
+      description: `Added ${displayValue} to ${selectedCategory?.name}`,
     });
 
     // Reset form
     setDescription('');
     setQuantity('');
+    setTimeMinutes('');
     setMarksObtained('');
     setMarksTotal('');
     setIsSubmitting(false);
@@ -78,7 +109,7 @@ export default function LogStudy() {
 
   return (
     <AppLayout>
-      <div className="p-4 lg:p-8 max-w-2xl mx-auto space-y-6">
+      <div className="p-4 lg:p-8 max-w-2xl mx-auto space-y-6 pb-32 lg:pb-8">
         {/* Header */}
         <header>
           <h1 className="text-2xl lg:text-3xl font-display font-bold">Log Study</h1>
@@ -102,14 +133,14 @@ export default function LogStudy() {
           </Card>
         ) : (
           <Card className="card-elevated">
-            <CardHeader>
+            <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2 font-display">
                 <PenLine className="w-5 h-5 text-primary" />
                 New Study Entry
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-5">
+              <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Exam Selection */}
                 <div className="space-y-2">
                   <Label htmlFor="exam">Exam</Label>
@@ -168,35 +199,65 @@ export default function LogStudy() {
                   />
                 </div>
 
-                {/* Quantity */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="quantity">
-                      Quantity {selectedCategory ? `(${selectedCategory.unit})` : ''}
-                    </Label>
-                    <Input
-                      id="quantity"
-                      type="number"
-                      min="1"
-                      step="1"
-                      placeholder="e.g., 2"
-                      value={quantity}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        // Only allow whole numbers
-                        if (value === '' || /^\d+$/.test(value)) {
-                          setQuantity(value);
-                        }
-                      }}
-                      onKeyDown={(e) => {
-                        // Prevent decimal point and other non-integer characters
-                        if (e.key === '.' || e.key === ',' || e.key === '-' || e.key === 'e') {
-                          e.preventDefault();
-                        }
-                      }}
-                      required
-                    />
-                  </div>
+                {/* Quantity / Time Input */}
+                <div className="grid grid-cols-2 gap-3">
+                  {isTimeCategory ? (
+                    <div className="space-y-2">
+                      <Label htmlFor="time-minutes" className="flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5" />
+                        Time (minutes)
+                      </Label>
+                      <Input
+                        id="time-minutes"
+                        type="number"
+                        min="1"
+                        step="1"
+                        placeholder="e.g., 45"
+                        value={timeMinutes}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '' || /^\d+$/.test(value)) {
+                            setTimeMinutes(value);
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === '.' || e.key === ',' || e.key === '-' || e.key === 'e') {
+                            e.preventDefault();
+                          }
+                        }}
+                        required
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Enter time in minutes (e.g., 30, 60, 90)
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label htmlFor="quantity">
+                        Quantity {selectedCategory ? `(${selectedCategory.unit})` : ''}
+                      </Label>
+                      <Input
+                        id="quantity"
+                        type="number"
+                        min="1"
+                        step="1"
+                        placeholder="e.g., 2"
+                        value={quantity}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '' || /^\d+$/.test(value)) {
+                            setQuantity(value);
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === '.' || e.key === ',' || e.key === '-' || e.key === 'e') {
+                            e.preventDefault();
+                          }
+                        }}
+                        required
+                      />
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <Label htmlFor="date">Date</Label>
                     <Input
@@ -210,27 +271,52 @@ export default function LogStudy() {
                   </div>
                 </div>
 
-                {/* Marks (conditional) */}
+                {/* Marks (conditional for scores category) */}
                 {showMarks && (
                   <div className="space-y-2">
-                    <Label>Marks (optional)</Label>
+                    <Label>Marks / Score</Label>
                     <div className="flex items-center gap-2">
                       <Input
                         type="number"
                         min="0"
+                        step="1"
                         placeholder="Obtained"
                         value={marksObtained}
-                        onChange={(e) => setMarksObtained(e.target.value)}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '' || /^\d+$/.test(value)) {
+                            setMarksObtained(value);
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === '.' || e.key === ',' || e.key === '-' || e.key === 'e') {
+                            e.preventDefault();
+                          }
+                        }}
                       />
-                      <span className="text-muted-foreground">/</span>
+                      <span className="text-muted-foreground font-medium">/</span>
                       <Input
                         type="number"
                         min="1"
+                        step="1"
                         placeholder="Total"
                         value={marksTotal}
-                        onChange={(e) => setMarksTotal(e.target.value)}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '' || /^\d+$/.test(value)) {
+                            setMarksTotal(value);
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === '.' || e.key === ',' || e.key === '-' || e.key === 'e') {
+                            e.preventDefault();
+                          }
+                        }}
                       />
                     </div>
+                    <p className="text-xs text-muted-foreground">
+                      Enter marks obtained out of total (e.g., 45 / 50)
+                    </p>
                   </div>
                 )}
 
@@ -239,7 +325,13 @@ export default function LogStudy() {
                   type="submit" 
                   className="w-full" 
                   size="lg"
-                  disabled={!examId || !categoryId || !description.trim() || !quantity || isSubmitting}
+                  disabled={
+                    !examId || 
+                    !categoryId || 
+                    !description.trim() || 
+                    (isTimeCategory ? !timeMinutes : !quantity) || 
+                    isSubmitting
+                  }
                 >
                   <Check className="w-4 h-4 mr-2" />
                   Log Study Session

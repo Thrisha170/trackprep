@@ -11,7 +11,7 @@ export default function Exams() {
 
   return (
     <AppLayout>
-      <div className="p-4 lg:p-8 max-w-6xl mx-auto space-y-6">
+      <div className="p-4 lg:p-8 max-w-6xl mx-auto space-y-6 pb-32 lg:pb-8">
         {/* Header */}
         <header className="flex items-center justify-between">
           <div>

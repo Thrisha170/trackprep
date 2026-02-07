@@ -39,7 +39,7 @@ export function AddExamDialog({ trigger, open, onOpenChange }: AddExamDialogProp
   return (
     <Dialog open={controlledOpen} onOpenChange={setControlledOpen}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 font-display">
             <BookOpen className="w-5 h-5 text-primary" />
@@ -134,7 +134,7 @@ export function AddCategoryDialog({ examId, trigger, open, onOpenChange }: AddCa
   return (
     <Dialog open={controlledOpen} onOpenChange={setControlledOpen}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 font-display">
             <Plus className="w-5 h-5 text-primary" />
@@ -159,12 +159,22 @@ export function AddCategoryDialog({ examId, trigger, open, onOpenChange }: AddCa
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="time">Time (hours)</SelectItem>
+                <SelectItem value="time">Time (log in minutes)</SelectItem>
                 <SelectItem value="tasks">Tasks (chapters/topics)</SelectItem>
                 <SelectItem value="units">Units (pages/questions)</SelectItem>
-                <SelectItem value="scores">Scores (marks)</SelectItem>
+                <SelectItem value="scores">Scores / Marks (tests)</SelectItem>
               </SelectContent>
             </Select>
+            {targetType === 'time' && (
+              <p className="text-xs text-muted-foreground">
+                Set target in hours. When logging, you'll enter minutes.
+              </p>
+            )}
+            {targetType === 'scores' && (
+              <p className="text-xs text-muted-foreground">
+                Track test scores for this category. Enter marks when logging.
+              </p>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
