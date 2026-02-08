@@ -86,9 +86,27 @@ export default function Analytics() {
     };
   });
 
+  // Calculate marks/scores data for score-type categories
+  const scoresData = studyEntries
+    .filter(e => e.marks)
+    .map(entry => {
+      const exam = exams.find(ex => ex.id === entry.examId);
+      const category = exam?.categories.find(c => c.id === entry.categoryId);
+      return {
+        date: new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        description: entry.description.length > 20 ? entry.description.slice(0, 20) + '...' : entry.description,
+        obtained: entry.marks!.obtained,
+        total: entry.marks!.total,
+        percentage: Math.round((entry.marks!.obtained / entry.marks!.total) * 100),
+        category: category?.name || 'Unknown',
+      };
+    })
+    .slice(-10)
+    .reverse();
+
   return (
     <AppLayout>
-      <div className="p-4 lg:p-8 max-w-6xl mx-auto space-y-6">
+      <div className="p-4 lg:p-8 max-w-6xl mx-auto space-y-6 pb-32 lg:pb-8">
         {/* Header */}
         <header>
           <h1 className="text-2xl lg:text-3xl font-display font-bold">Analytics</h1>
@@ -291,6 +309,83 @@ export default function Analytics() {
                         <Legend content={<CustomLegend />} />
                       </PieChart>
                     </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Marks/Scores Analytics */}
+            {scoresData.length > 0 && (
+              <Card className="card-elevated">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base font-display flex items-center gap-2">
+                    <Target className="w-4 h-4 text-primary" />
+                    Test Scores History
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[200px] sm:h-[250px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart 
+                        data={scoresData}
+                        margin={{ top: 5, right: 20, left: -10, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis 
+                          dataKey="date" 
+                          tick={{ fontSize: 10, fill: 'hsl(var(--foreground))' }}
+                          stroke="hsl(var(--muted-foreground))"
+                          tickLine={{ stroke: 'hsl(var(--border))' }}
+                        />
+                        <YAxis 
+                          domain={[0, 100]}
+                          tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }}
+                          stroke="hsl(var(--muted-foreground))"
+                          tickLine={{ stroke: 'hsl(var(--border))' }}
+                          tickFormatter={(value) => `${value}%`}
+                        />
+                        <Tooltip 
+                          content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              const data = payload[0].payload;
+                              return (
+                                <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
+                                  <p className="text-sm font-medium text-foreground mb-1">{data.description}</p>
+                                  <p className="text-xs text-muted-foreground">{data.category}</p>
+                                  <p className="text-sm text-foreground mt-1">
+                                    <span className="font-semibold">{data.obtained}/{data.total}</span> ({data.percentage}%)
+                                  </p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        <Bar 
+                          dataKey="percentage" 
+                          fill="hsl(var(--warning))" 
+                          radius={[4, 4, 0, 0]}
+                          name="Score %"
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="mt-4 space-y-2">
+                    {scoresData.slice(0, 5).map((score, index) => (
+                      <div key={index} className="flex items-center justify-between text-sm">
+                        <div className="flex-1 min-w-0">
+                          <span className="text-foreground truncate block">{score.description}</span>
+                          <span className="text-xs text-muted-foreground">{score.category} • {score.date}</span>
+                        </div>
+                        <span className={`font-semibold ml-2 ${
+                          score.percentage >= 80 ? 'text-success' : 
+                          score.percentage >= 50 ? 'text-warning' : 
+                          'text-destructive'
+                        }`}>
+                          {score.obtained}/{score.total}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
