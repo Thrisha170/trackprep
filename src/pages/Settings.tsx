@@ -5,35 +5,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
-import { Moon, Sun, Download, Target, Heart, LogOut } from 'lucide-react';
+import { Moon, Sun, Target, Heart, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { ExportProgress } from '@/components/export/ExportProgress';
+import { ShareProgress } from '@/components/export/ShareProgress';
 
 export default function Settings() {
   const { theme, toggleTheme, exams, studyEntries } = useApp();
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-
-  const handleExportData = () => {
-    const data = {
-      exams,
-      studyEntries,
-      exportedAt: new Date().toISOString(),
-    };
-    
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `trackprep-backup-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
-    toast.success('Data exported successfully');
-  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -81,28 +62,11 @@ export default function Settings() {
           </CardContent>
         </Card>
 
-        {/* Data Management */}
-        <Card className="card-elevated">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-display">Data Management</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Download className="w-5 h-5 text-primary" />
-                <div>
-                  <p className="font-medium">Export Data</p>
-                  <p className="text-xs text-muted-foreground">
-                    Download all your data as JSON
-                  </p>
-                </div>
-              </div>
-              <Button variant="outline" size="sm" onClick={handleExportData}>
-                Export
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Export Progress */}
+        <ExportProgress />
+
+        {/* Share Progress */}
+        <ShareProgress />
 
         {/* Account */}
         <Card className="card-elevated">
