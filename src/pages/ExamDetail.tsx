@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { AddCategoryDialog } from '@/components/dialogs/AddDialogs';
+import { EditCategoryDialog } from '@/components/dialogs/EditCategoryDialog';
 import { ProgressBar, CircularProgress } from '@/components/ui/progress-display';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +12,7 @@ import {
   Trash2, Pencil, Clock, BookOpen, FileText, Trophy 
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { calculateProgress, formatTime } from '@/types';
+import { calculateProgress, formatTime, Category } from '@/types';
 import { cn } from '@/lib/utils';
 
 const getTargetIcon = (type: string) => {
@@ -27,6 +29,9 @@ export default function ExamDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { exams, getExamProgress, deleteExam, deleteCategory, studyEntries } = useApp();
+  
+  // State for edit category dialog
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
 
   const exam = exams.find(e => e.id === id);
 
@@ -232,7 +237,10 @@ export default function ExamDetail() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem className="gap-2">
+                            <DropdownMenuItem 
+                              className="gap-2"
+                              onClick={() => setEditingCategory(category)}
+                            >
                               <Pencil className="w-4 h-4" />
                               Edit
                             </DropdownMenuItem>
@@ -271,7 +279,7 @@ export default function ExamDetail() {
                         <Link to={`/log?exam=${exam.id}&category=${category.id}`}>
                           <Button variant="outline" size="sm">
                             <Plus className="w-3 h-3 mr-1" />
-                            Log
+                            {category.targetType === 'scores' ? 'Add Test Log' : 'Log'}
                           </Button>
                         </Link>
                       </div>
@@ -280,6 +288,16 @@ export default function ExamDetail() {
                 );
               })}
             </div>
+          )}
+          
+          {/* Edit Category Dialog */}
+          {editingCategory && (
+            <EditCategoryDialog
+              examId={exam.id}
+              category={editingCategory}
+              open={!!editingCategory}
+              onOpenChange={(open) => !open && setEditingCategory(null)}
+            />
           )}
         </section>
 
@@ -291,6 +309,9 @@ export default function ExamDetail() {
               <CardContent className="p-4 divide-y divide-border">
                 {examEntries.slice(-5).reverse().map(entry => {
                   const category = exam.categories.find(c => c.id === entry.categoryId);
+                  const isTimeEntry = category?.targetType === 'time';
+                  const isScoresEntry = category?.targetType === 'scores';
+                  
                   return (
                     <div key={entry.id} className="py-3 first:pt-0 last:pb-0">
                       <div className="flex items-start justify-between">
@@ -300,9 +321,19 @@ export default function ExamDetail() {
                             {category?.name} • {new Date(entry.date).toLocaleDateString()}
                           </p>
                         </div>
-                        <span className="text-sm font-medium text-primary ml-4">
-                          +{entry.quantity} {category?.unit}
-                        </span>
+                        <div className="text-right ml-4">
+                          <span className="text-sm font-medium text-primary">
+                            {isTimeEntry 
+                              ? `+${formatTime(entry.quantity)}`
+                              : `+${entry.quantity} ${category?.unit}`
+                            }
+                          </span>
+                          {isScoresEntry && entry.marks && (
+                            <p className="text-xs text-muted-foreground">
+                              {entry.marks.obtained}/{entry.marks.total} marks
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
