@@ -33,6 +33,18 @@ export default function ExamDetail() {
   // State for edit category dialog
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
 
+  // Check if category has both study and test logs
+  const getCategoryLogStatus = (categoryId: string): string => {
+    const categoryEntries = studyEntries.filter(e => e.categoryId === categoryId);
+    const hasStudyLogs = categoryEntries.some(e => !e.marks);
+    const hasTestLogs = categoryEntries.some(e => e.marks);
+    
+    if (hasStudyLogs && hasTestLogs) return '✓ Complete';
+    if (hasStudyLogs) return 'Needs test log';
+    if (hasTestLogs) return 'Needs study log';
+    return 'No logs yet';
+  };
+
   const exam = exams.find(e => e.id === id);
 
   if (!exam) {
@@ -269,6 +281,24 @@ export default function ExamDetail() {
                         </span>
                       </div>
                       <ProgressBar value={category.completedValue} max={category.targetValue} size="md" />
+                      
+                      {/* Dual Log Buttons - Always show both Study Log and Test Log */}
+                      <div className="flex flex-wrap gap-2 pt-2">
+                        <Link to={`/log?exam=${exam.id}&category=${category.id}&type=study`}>
+                          <Button variant="outline" size="sm">
+                            <Plus className="w-3 h-3 mr-1" />
+                            Study Log
+                          </Button>
+                        </Link>
+                        <Link to={`/log?exam=${exam.id}&category=${category.id}&type=test`}>
+                          <Button variant="default" size="sm">
+                            <Trophy className="w-3 h-3 mr-1" />
+                            Test Log
+                          </Button>
+                        </Link>
+                      </div>
+                      
+                      {/* Progress percentage */}
                       <div className="flex justify-between items-center pt-1">
                         <span className={cn(
                           "text-lg font-display font-bold",
@@ -276,12 +306,9 @@ export default function ExamDetail() {
                         )}>
                           {catProgress}%
                         </span>
-                        <Link to={`/log?exam=${exam.id}&category=${category.id}`}>
-                          <Button variant="outline" size="sm">
-                            <Plus className="w-3 h-3 mr-1" />
-                            {category.targetType === 'scores' ? 'Add Test Log' : 'Log'}
-                          </Button>
-                        </Link>
+                        <span className="text-xs text-muted-foreground">
+                          {getCategoryLogStatus(category.id)}
+                        </span>
                       </div>
                     </CardContent>
                   </Card>

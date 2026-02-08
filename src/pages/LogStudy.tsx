@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PenLine, Check, BookOpen, Clock } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PenLine, Check, BookOpen, Clock, Trophy } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatTime } from '@/types';
 
@@ -17,6 +18,9 @@ export default function LogStudy() {
   const navigate = useNavigate();
   const { exams, addStudyEntry } = useApp();
 
+  const initialLogType = searchParams.get('type') || 'study';
+  
+  const [logType, setLogType] = useState<'study' | 'test'>(initialLogType as 'study' | 'test');
   const [examId, setExamId] = useState(searchParams.get('exam') || '');
   const [categoryId, setCategoryId] = useState(searchParams.get('category') || '');
   const [description, setDescription] = useState('');
@@ -29,8 +33,10 @@ export default function LogStudy() {
 
   const selectedExam = exams.find(e => e.id === examId);
   const selectedCategory = selectedExam?.categories.find(c => c.id === categoryId);
-  const showMarks = selectedCategory?.targetType === 'scores';
   const isTimeCategory = selectedCategory?.targetType === 'time';
+  
+  // For test logs, always require marks regardless of category type
+  const showMarks = logType === 'test';
 
   // Reset category when exam changes
   useEffect(() => {
@@ -41,32 +47,63 @@ export default function LogStudy() {
 
   // Convert minutes to hours for storage (internal representation)
   const getQuantityValue = (): number => {
-    if (isTimeCategory) {
+    if (isTimeCategory && logType === 'study') {
       const minutes = parseInt(timeMinutes, 10);
       if (isNaN(minutes) || minutes < 1) return 0;
       // Store as fractional hours (e.g., 90 minutes = 1.5 hours)
       return parseFloat((minutes / 60).toFixed(4));
     }
+    // For test logs, quantity is always 1 (one test)
+    if (logType === 'test') return 1;
     return parseInt(quantity, 10);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (isTimeCategory) {
-      const minutes = parseInt(timeMinutes, 10);
-      if (!examId || !categoryId || !description.trim() || !timeMinutes || isNaN(minutes) || minutes < 1) {
-        if (timeMinutes && (isNaN(minutes) || minutes < 1)) {
-          toast.error('Please enter at least 1 minute');
+    // Validation for study logs
+    if (logType === 'study') {
+      if (isTimeCategory) {
+        const minutes = parseInt(timeMinutes, 10);
+        if (!examId || !categoryId || !description.trim() || !timeMinutes || isNaN(minutes) || minutes < 1) {
+          if (timeMinutes && (isNaN(minutes) || minutes < 1)) {
+            toast.error('Please enter at least 1 minute');
+          }
+          return;
         }
+      } else {
+        const quantityInt = parseInt(quantity, 10);
+        if (!examId || !categoryId || !description.trim() || !quantity || isNaN(quantityInt) || quantityInt < 1) {
+          if (quantity && (isNaN(quantityInt) || quantityInt < 1)) {
+            toast.error('Please enter a whole number greater than 0');
+          }
+          return;
+        }
+      }
+    }
+    
+    // Validation for test logs - require marks
+    if (logType === 'test') {
+      const obtained = parseInt(marksObtained, 10);
+      const total = parseInt(marksTotal, 10);
+      
+      if (!examId || !categoryId || !description.trim()) {
+        toast.error('Please fill in all required fields');
         return;
       }
-    } else {
-      const quantityInt = parseInt(quantity, 10);
-      if (!examId || !categoryId || !description.trim() || !quantity || isNaN(quantityInt) || quantityInt < 1) {
-        if (quantity && (isNaN(quantityInt) || quantityInt < 1)) {
-          toast.error('Please enter a whole number greater than 0');
-        }
+      
+      if (!marksObtained || !marksTotal || isNaN(obtained) || isNaN(total)) {
+        toast.error('Please enter valid marks');
+        return;
+      }
+      
+      if (obtained < 0 || total < 1) {
+        toast.error('Marks must be valid numbers (total ≥ 1)');
+        return;
+      }
+      
+      if (obtained > total) {
+        toast.error('Marks obtained cannot exceed total marks');
         return;
       }
     }
@@ -85,11 +122,13 @@ export default function LogStudy() {
         : undefined,
     });
 
-    const displayValue = isTimeCategory 
-      ? formatTime(quantityValue)
-      : `${quantity} ${selectedCategory?.unit}`;
+    const displayValue = logType === 'test' 
+      ? `${marksObtained}/${marksTotal} marks`
+      : isTimeCategory 
+        ? formatTime(quantityValue)
+        : `${quantity} ${selectedCategory?.unit}`;
 
-    toast.success('Study session logged!', {
+    toast.success(logType === 'test' ? 'Test logged!' : 'Study session logged!', {
       description: `Added ${displayValue} to ${selectedCategory?.name}`,
     });
 
@@ -135,11 +174,28 @@ export default function LogStudy() {
           <Card className="card-elevated">
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2 font-display">
-                <PenLine className="w-5 h-5 text-primary" />
-                New Study Entry
+                {logType === 'test' ? (
+                  <Trophy className="w-5 h-5 text-primary" />
+                ) : (
+                  <PenLine className="w-5 h-5 text-primary" />
+                )}
+                {logType === 'test' ? 'New Test Log' : 'New Study Log'}
               </CardTitle>
             </CardHeader>
             <CardContent>
+              {/* Log Type Tabs */}
+              <Tabs value={logType} onValueChange={(v) => setLogType(v as 'study' | 'test')} className="mb-6">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="study" className="gap-2">
+                    <PenLine className="w-4 h-4" />
+                    Study Log
+                  </TabsTrigger>
+                  <TabsTrigger value="test" className="gap-2">
+                    <Trophy className="w-4 h-4" />
+                    Test Log
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
               <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Exam Selection */}
                 <div className="space-y-2">
@@ -188,10 +244,15 @@ export default function LogStudy() {
 
                 {/* Description */}
                 <div className="space-y-2">
-                  <Label htmlFor="description">What did you study?</Label>
+                  <Label htmlFor="description">
+                    {logType === 'test' ? 'Test Name / Description' : 'What did you study?'}
+                  </Label>
                   <Textarea
                     id="description"
-                    placeholder="e.g., Completed Chapter 5 - Verb Conjugations"
+                    placeholder={logType === 'test' 
+                      ? "e.g., Chapter 5 Practice Test, Mock Exam #2"
+                      : "e.g., Completed Chapter 5 - Verb Conjugations"
+                    }
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     rows={2}
@@ -199,125 +260,142 @@ export default function LogStudy() {
                   />
                 </div>
 
-                {/* Quantity / Time Input */}
-                <div className="grid grid-cols-2 gap-3">
-                  {isTimeCategory ? (
+                {/* Study Log: Quantity / Time Input */}
+                {logType === 'study' && (
+                  <div className="grid grid-cols-2 gap-3">
+                    {isTimeCategory ? (
+                      <div className="space-y-2">
+                        <Label htmlFor="time-minutes" className="flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5" />
+                          Time (minutes)
+                        </Label>
+                        <Input
+                          id="time-minutes"
+                          type="number"
+                          min="1"
+                          step="1"
+                          placeholder="e.g., 45"
+                          value={timeMinutes}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || /^\d+$/.test(value)) {
+                              setTimeMinutes(value);
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === '.' || e.key === ',' || e.key === '-' || e.key === 'e') {
+                              e.preventDefault();
+                            }
+                          }}
+                          required
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Enter time in minutes (e.g., 30, 60, 90)
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Label htmlFor="quantity">
+                          Quantity {selectedCategory ? `(${selectedCategory.unit})` : ''}
+                        </Label>
+                        <Input
+                          id="quantity"
+                          type="number"
+                          min="1"
+                          step="1"
+                          placeholder="e.g., 2"
+                          value={quantity}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || /^\d+$/.test(value)) {
+                              setQuantity(value);
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === '.' || e.key === ',' || e.key === '-' || e.key === 'e') {
+                              e.preventDefault();
+                            }
+                          }}
+                          required
+                        />
+                      </div>
+                    )}
                     <div className="space-y-2">
-                      <Label htmlFor="time-minutes" className="flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5" />
-                        Time (minutes)
-                      </Label>
+                      <Label htmlFor="date">Date</Label>
                       <Input
-                        id="time-minutes"
-                        type="number"
-                        min="1"
-                        step="1"
-                        placeholder="e.g., 45"
-                        value={timeMinutes}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (value === '' || /^\d+$/.test(value)) {
-                            setTimeMinutes(value);
-                          }
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === '.' || e.key === ',' || e.key === '-' || e.key === 'e') {
-                            e.preventDefault();
-                          }
-                        }}
+                        id="date"
+                        type="date"
+                        value={date}
+                        onChange={(e) => setDate(e.target.value)}
+                        max={new Date().toISOString().split('T')[0]}
                         required
                       />
+                    </div>
+                  </div>
+                )}
+
+                {/* Test Log: Marks Input (always required for test logs) */}
+                {logType === 'test' && (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Marks / Score (Required)</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          min="0"
+                          step="1"
+                          placeholder="Obtained"
+                          value={marksObtained}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || /^\d+$/.test(value)) {
+                              setMarksObtained(value);
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === '.' || e.key === ',' || e.key === '-' || e.key === 'e') {
+                              e.preventDefault();
+                            }
+                          }}
+                          required
+                        />
+                        <span className="text-muted-foreground font-medium">/</span>
+                        <Input
+                          type="number"
+                          min="1"
+                          step="1"
+                          placeholder="Total"
+                          value={marksTotal}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === '' || /^\d+$/.test(value)) {
+                              setMarksTotal(value);
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === '.' || e.key === ',' || e.key === '-' || e.key === 'e') {
+                              e.preventDefault();
+                            }
+                          }}
+                          required
+                        />
+                      </div>
                       <p className="text-xs text-muted-foreground">
-                        Enter time in minutes (e.g., 30, 60, 90)
+                        Enter marks obtained out of total (e.g., 45 / 50). Integers only.
                       </p>
                     </div>
-                  ) : (
                     <div className="space-y-2">
-                      <Label htmlFor="quantity">
-                        Quantity {selectedCategory ? `(${selectedCategory.unit})` : ''}
-                      </Label>
+                      <Label htmlFor="test-date">Test Date</Label>
                       <Input
-                        id="quantity"
-                        type="number"
-                        min="1"
-                        step="1"
-                        placeholder="e.g., 2"
-                        value={quantity}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (value === '' || /^\d+$/.test(value)) {
-                            setQuantity(value);
-                          }
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === '.' || e.key === ',' || e.key === '-' || e.key === 'e') {
-                            e.preventDefault();
-                          }
-                        }}
+                        id="test-date"
+                        type="date"
+                        value={date}
+                        onChange={(e) => setDate(e.target.value)}
+                        max={new Date().toISOString().split('T')[0]}
                         required
                       />
                     </div>
-                  )}
-                  <div className="space-y-2">
-                    <Label htmlFor="date">Date</Label>
-                    <Input
-                      id="date"
-                      type="date"
-                      value={date}
-                      onChange={(e) => setDate(e.target.value)}
-                      max={new Date().toISOString().split('T')[0]}
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Marks (conditional for scores category) */}
-                {showMarks && (
-                  <div className="space-y-2">
-                    <Label>Marks / Score</Label>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="number"
-                        min="0"
-                        step="1"
-                        placeholder="Obtained"
-                        value={marksObtained}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (value === '' || /^\d+$/.test(value)) {
-                            setMarksObtained(value);
-                          }
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === '.' || e.key === ',' || e.key === '-' || e.key === 'e') {
-                            e.preventDefault();
-                          }
-                        }}
-                      />
-                      <span className="text-muted-foreground font-medium">/</span>
-                      <Input
-                        type="number"
-                        min="1"
-                        step="1"
-                        placeholder="Total"
-                        value={marksTotal}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          if (value === '' || /^\d+$/.test(value)) {
-                            setMarksTotal(value);
-                          }
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === '.' || e.key === ',' || e.key === '-' || e.key === 'e') {
-                            e.preventDefault();
-                          }
-                        }}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Enter marks obtained out of total (e.g., 45 / 50)
-                    </p>
-                  </div>
+                  </>
                 )}
 
                 {/* Submit */}
@@ -329,12 +407,14 @@ export default function LogStudy() {
                     !examId || 
                     !categoryId || 
                     !description.trim() || 
-                    (isTimeCategory ? !timeMinutes : !quantity) || 
+                    (logType === 'study' && isTimeCategory && !timeMinutes) ||
+                    (logType === 'study' && !isTimeCategory && !quantity) ||
+                    (logType === 'test' && (!marksObtained || !marksTotal)) ||
                     isSubmitting
                   }
                 >
                   <Check className="w-4 h-4 mr-2" />
-                  Log Study Session
+                  {logType === 'test' ? 'Log Test Result' : 'Log Study Session'}
                 </Button>
               </form>
             </CardContent>

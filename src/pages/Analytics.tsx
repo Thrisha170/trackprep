@@ -1,10 +1,11 @@
+import { useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CircularProgress, ProgressBar } from '@/components/ui/progress-display';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
-import { TrendingUp, BarChart3, Target } from 'lucide-react';
-import { calculateProgress } from '@/types';
+import { TrendingUp, BarChart3, Target, BookOpen, Trophy } from 'lucide-react';
+import { calculateProgress, formatTime } from '@/types';
 
 const CHART_COLORS = [
   'hsl(150 45% 45%)',
@@ -52,57 +53,104 @@ const CustomLegend = ({ payload }: any) => {
 
 export default function Analytics() {
   const { exams, getExamProgress, getOverallProgress, studyEntries } = useApp();
-  const overallProgress = getOverallProgress();
-
-  // Prepare exam progress data for bar chart
-  const examProgressData = exams.map(exam => ({
-    name: exam.name.length > 10 ? exam.name.slice(0, 10) + '...' : exam.name,
-    progress: getExamProgress(exam.id),
-    fullName: exam.name,
-  }));
-
-  // Prepare category distribution data for pie chart
-  const allCategories = exams.flatMap(exam => 
-    exam.categories.map(cat => ({
-      name: cat.name,
-      value: cat.completedValue,
-      exam: exam.name,
-    }))
-  ).filter(c => c.value > 0);
-
-  // Study entries by date (last 7 days)
-  const last7Days = [...Array(7)].map((_, i) => {
-    const date = new Date();
-    date.setDate(date.getDate() - (6 - i));
-    return date.toISOString().split('T')[0];
-  });
-
-  const entriesByDay = last7Days.map(date => {
-    const dayEntries = studyEntries.filter(e => e.date === date);
-    return {
-      date: new Date(date).toLocaleDateString('en-US', { weekday: 'short' }),
-      entries: dayEntries.length,
-      quantity: dayEntries.reduce((sum, e) => sum + e.quantity, 0),
+  
+  // Calculate all analytics from real data using useMemo for performance
+  const analyticsData = useMemo(() => {
+    const overallProgress = getOverallProgress();
+    
+    // Separate study logs from test logs
+    const studyLogs = studyEntries.filter(e => !e.marks);
+    const testLogs = studyEntries.filter(e => e.marks);
+    
+    // Calculate total study effort by type
+    const studyEffort = {
+      time: 0,
+      tasks: 0,
+      units: 0,
     };
-  });
-
-  // Calculate marks/scores data for score-type categories
-  const scoresData = studyEntries
-    .filter(e => e.marks)
-    .map(entry => {
-      const exam = exams.find(ex => ex.id === entry.examId);
+    
+    studyLogs.forEach(entry => {
+      const exam = exams.find(e => e.id === entry.examId);
       const category = exam?.categories.find(c => c.id === entry.categoryId);
+      if (category) {
+        if (category.targetType === 'time') {
+          studyEffort.time += entry.quantity;
+        } else if (category.targetType === 'tasks') {
+          studyEffort.tasks += entry.quantity;
+        } else if (category.targetType === 'units') {
+          studyEffort.units += entry.quantity;
+        }
+      }
+    });
+    
+    // Calculate average test performance
+    const avgTestScore = testLogs.length > 0
+      ? Math.round(testLogs.reduce((sum, e) => sum + (e.marks!.obtained / e.marks!.total) * 100, 0) / testLogs.length)
+      : null;
+    
+    // Exam progress data
+    const examProgressData = exams.map(exam => ({
+      name: exam.name.length > 10 ? exam.name.slice(0, 10) + '...' : exam.name,
+      progress: getExamProgress(exam.id),
+      fullName: exam.name,
+    }));
+    
+    // Category distribution
+    const allCategories = exams.flatMap(exam => 
+      exam.categories.map(cat => ({
+        name: cat.name,
+        value: cat.completedValue,
+        exam: exam.name,
+      }))
+    ).filter(c => c.value > 0);
+    
+    // Study entries by date (last 7 days)
+    const last7Days = [...Array(7)].map((_, i) => {
+      const date = new Date();
+      date.setDate(date.getDate() - (6 - i));
+      return date.toISOString().split('T')[0];
+    });
+    
+    const entriesByDay = last7Days.map(date => {
+      const dayStudyEntries = studyLogs.filter(e => e.date === date);
+      const dayTestEntries = testLogs.filter(e => e.date === date);
       return {
-        date: new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        description: entry.description.length > 20 ? entry.description.slice(0, 20) + '...' : entry.description,
-        obtained: entry.marks!.obtained,
-        total: entry.marks!.total,
-        percentage: Math.round((entry.marks!.obtained / entry.marks!.total) * 100),
-        category: category?.name || 'Unknown',
+        date: new Date(date).toLocaleDateString('en-US', { weekday: 'short' }),
+        studySessions: dayStudyEntries.length,
+        testSessions: dayTestEntries.length,
+        total: dayStudyEntries.length + dayTestEntries.length,
       };
-    })
-    .slice(-10)
-    .reverse();
+    });
+    
+    // Scores data
+    const scoresData = testLogs
+      .map(entry => {
+        const exam = exams.find(ex => ex.id === entry.examId);
+        const category = exam?.categories.find(c => c.id === entry.categoryId);
+        return {
+          date: new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          description: entry.description.length > 20 ? entry.description.slice(0, 20) + '...' : entry.description,
+          obtained: entry.marks!.obtained,
+          total: entry.marks!.total,
+          percentage: Math.round((entry.marks!.obtained / entry.marks!.total) * 100),
+          category: category?.name || 'Unknown',
+        };
+      })
+      .slice(-10)
+      .reverse();
+    
+    return {
+      overallProgress,
+      studyLogs,
+      testLogs,
+      studyEffort,
+      avgTestScore,
+      examProgressData,
+      allCategories,
+      entriesByDay,
+      scoresData,
+    };
+  }, [exams, studyEntries, getExamProgress, getOverallProgress]);
 
   return (
     <AppLayout>
@@ -127,7 +175,112 @@ export default function Analytics() {
           </Card>
         ) : (
           <>
-            {/* Overall Progress */}
+            {/* Summary Stats */}
+            <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+              <Card className="card-elevated">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Target className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-display font-bold">{analyticsData.overallProgress}%</p>
+                    <p className="text-xs text-muted-foreground">Overall Progress</p>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="card-elevated">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center">
+                    <BookOpen className="w-5 h-5 text-success" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-display font-bold">{analyticsData.studyLogs.length}</p>
+                    <p className="text-xs text-muted-foreground">Study Logs</p>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="card-elevated">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center">
+                    <Trophy className="w-5 h-5 text-warning" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-display font-bold">{analyticsData.testLogs.length}</p>
+                    <p className="text-xs text-muted-foreground">Test Logs</p>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="card-elevated">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                    analyticsData.avgTestScore !== null 
+                      ? analyticsData.avgTestScore >= 80 ? 'bg-success/10' 
+                        : analyticsData.avgTestScore >= 50 ? 'bg-warning/10' 
+                        : 'bg-destructive/10'
+                      : 'bg-muted'
+                  }`}>
+                    <TrendingUp className={`w-5 h-5 ${
+                      analyticsData.avgTestScore !== null 
+                        ? analyticsData.avgTestScore >= 80 ? 'text-success' 
+                          : analyticsData.avgTestScore >= 50 ? 'text-warning' 
+                          : 'text-destructive'
+                        : 'text-muted-foreground'
+                    }`} />
+                  </div>
+                  <div>
+                    <p className="text-xl font-display font-bold">
+                      {analyticsData.avgTestScore !== null ? `${analyticsData.avgTestScore}%` : '-'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Avg Test Score</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Study Effort Summary */}
+            {(analyticsData.studyEffort.time > 0 || analyticsData.studyEffort.tasks > 0 || analyticsData.studyEffort.units > 0) && (
+              <Card className="card-elevated">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base font-display flex items-center gap-2">
+                    <BookOpen className="w-4 h-4 text-primary" />
+                    Total Study Effort
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    {analyticsData.studyEffort.time > 0 && (
+                      <div className="p-3 rounded-lg bg-muted">
+                        <p className="text-lg font-display font-bold text-foreground">
+                          {formatTime(analyticsData.studyEffort.time)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Time Studied</p>
+                      </div>
+                    )}
+                    {analyticsData.studyEffort.tasks > 0 && (
+                      <div className="p-3 rounded-lg bg-muted">
+                        <p className="text-lg font-display font-bold text-foreground">
+                          {analyticsData.studyEffort.tasks}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Tasks Completed</p>
+                      </div>
+                    )}
+                    {analyticsData.studyEffort.units > 0 && (
+                      <div className="p-3 rounded-lg bg-muted">
+                        <p className="text-lg font-display font-bold text-foreground">
+                          {analyticsData.studyEffort.units}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Units Completed</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Overall Progress & Activity Chart */}
             <div className="grid gap-4 lg:grid-cols-3">
               <Card className="card-elevated lg:col-span-1">
                 <CardHeader className="pb-2">
@@ -138,15 +291,15 @@ export default function Analytics() {
                 </CardHeader>
                 <CardContent className="flex flex-col items-center justify-center py-4">
                   <CircularProgress 
-                    value={overallProgress} 
+                    value={analyticsData.overallProgress} 
                     size={120} 
                     strokeWidth={10} 
                     label="complete"
                   />
                   <p className="text-sm text-muted-foreground mt-4 text-center px-2">
-                    {overallProgress >= 80 
+                    {analyticsData.overallProgress >= 80 
                       ? "Excellent progress! Keep it up!"
-                      : overallProgress >= 50 
+                      : analyticsData.overallProgress >= 50 
                         ? "Good progress! You're halfway there."
                         : "Keep studying! Every session counts."
                     }
@@ -158,13 +311,13 @@ export default function Analytics() {
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base font-display flex items-center gap-2">
                     <TrendingUp className="w-4 h-4 text-primary" />
-                    Study Activity (Last 7 Days)
+                    Activity (Last 7 Days)
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="h-[180px] sm:h-[200px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={entriesByDay} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                      <BarChart data={analyticsData.entriesByDay} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                         <XAxis 
                           dataKey="date" 
@@ -178,11 +331,20 @@ export default function Analytics() {
                           tickLine={{ stroke: 'hsl(var(--border))' }}
                         />
                         <Tooltip content={<CustomTooltip />} />
+                        <Legend content={<CustomLegend />} />
                         <Bar 
-                          dataKey="entries" 
+                          dataKey="studySessions" 
                           fill="hsl(var(--primary))" 
                           radius={[4, 4, 0, 0]}
-                          name="Sessions"
+                          name="Study"
+                          stackId="a"
+                        />
+                        <Bar 
+                          dataKey="testSessions" 
+                          fill="hsl(var(--warning))" 
+                          radius={[4, 4, 0, 0]}
+                          name="Tests"
+                          stackId="a"
                         />
                       </BarChart>
                     </ResponsiveContainer>
@@ -192,7 +354,7 @@ export default function Analytics() {
             </div>
 
             {/* Exam Progress */}
-            {examProgressData.length > 0 && (
+            {analyticsData.examProgressData.length > 0 && (
               <Card className="card-elevated">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base font-display flex items-center gap-2">
@@ -204,7 +366,7 @@ export default function Analytics() {
                   <div className="h-[200px] sm:h-[250px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart 
-                        data={examProgressData} 
+                        data={analyticsData.examProgressData} 
                         layout="vertical"
                         margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
                       >
@@ -259,6 +421,10 @@ export default function Analytics() {
                       <CardContent className="space-y-3">
                         {exam.categories.map(cat => {
                           const catProgress = calculateProgress(cat.completedValue, cat.targetValue);
+                          const categoryEntries = studyEntries.filter(e => e.categoryId === cat.id);
+                          const hasStudyLogs = categoryEntries.some(e => !e.marks);
+                          const hasTestLogs = categoryEntries.some(e => e.marks);
+                          
                           return (
                             <div key={cat.id}>
                               <div className="flex justify-between text-sm mb-1">
@@ -266,6 +432,14 @@ export default function Analytics() {
                                 <span className="font-semibold text-foreground">{catProgress}%</span>
                               </div>
                               <ProgressBar value={cat.completedValue} max={cat.targetValue} size="sm" />
+                              <div className="flex gap-2 mt-1">
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded ${hasStudyLogs ? 'bg-success/20 text-success' : 'bg-muted text-muted-foreground'}`}>
+                                  Study {hasStudyLogs ? '✓' : '○'}
+                                </span>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded ${hasTestLogs ? 'bg-warning/20 text-warning' : 'bg-muted text-muted-foreground'}`}>
+                                  Test {hasTestLogs ? '✓' : '○'}
+                                </span>
+                              </div>
                             </div>
                           );
                         })}
@@ -277,7 +451,7 @@ export default function Analytics() {
             </div>
 
             {/* Distribution Pie Chart */}
-            {allCategories.length > 0 && (
+            {analyticsData.allCategories.length > 0 && (
               <Card className="card-elevated">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base font-display">Study Distribution</CardTitle>
@@ -287,7 +461,7 @@ export default function Analytics() {
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
                         <Pie
-                          data={allCategories}
+                          data={analyticsData.allCategories}
                           cx="50%"
                           cy="45%"
                           labelLine={false}
@@ -298,7 +472,7 @@ export default function Analytics() {
                             percent > 0.08 ? `${(percent * 100).toFixed(0)}%` : ''
                           }
                         >
-                          {allCategories.map((_, index) => (
+                          {analyticsData.allCategories.map((_, index) => (
                             <Cell 
                               key={`cell-${index}`} 
                               fill={CHART_COLORS[index % CHART_COLORS.length]} 
@@ -315,11 +489,11 @@ export default function Analytics() {
             )}
 
             {/* Marks/Scores Analytics */}
-            {scoresData.length > 0 && (
+            {analyticsData.scoresData.length > 0 && (
               <Card className="card-elevated">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base font-display flex items-center gap-2">
-                    <Target className="w-4 h-4 text-primary" />
+                    <Trophy className="w-4 h-4 text-warning" />
                     Test Scores History
                   </CardTitle>
                 </CardHeader>
@@ -327,7 +501,7 @@ export default function Analytics() {
                   <div className="h-[200px] sm:h-[250px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart 
-                        data={scoresData}
+                        data={analyticsData.scoresData}
                         margin={{ top: 5, right: 20, left: -10, bottom: 5 }}
                       >
                         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -363,15 +537,27 @@ export default function Analytics() {
                         />
                         <Bar 
                           dataKey="percentage" 
-                          fill="hsl(var(--warning))" 
                           radius={[4, 4, 0, 0]}
                           name="Score %"
-                        />
+                        >
+                          {analyticsData.scoresData.map((entry, index) => (
+                            <Cell 
+                              key={`cell-${index}`} 
+                              fill={
+                                entry.percentage >= 80 
+                                  ? 'hsl(var(--success))' 
+                                  : entry.percentage >= 50 
+                                    ? 'hsl(var(--warning))' 
+                                    : 'hsl(var(--destructive))'
+                              } 
+                            />
+                          ))}
+                        </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
                   <div className="mt-4 space-y-2">
-                    {scoresData.slice(0, 5).map((score, index) => (
+                    {analyticsData.scoresData.slice(0, 5).map((score, index) => (
                       <div key={index} className="flex items-center justify-between text-sm">
                         <div className="flex-1 min-w-0">
                           <span className="text-foreground truncate block">{score.description}</span>
