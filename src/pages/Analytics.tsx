@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,6 +6,7 @@ import { CircularProgress, ProgressBar } from '@/components/ui/progress-display'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { TrendingUp, BarChart3, Target, BookOpen, Trophy } from 'lucide-react';
 import { calculateProgress, formatTime } from '@/types';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 const CHART_COLORS = [
   'hsl(150 45% 45%)',
@@ -53,6 +54,7 @@ const CustomLegend = ({ payload }: any) => {
 
 export default function Analytics() {
   const { exams, getExamProgress, getOverallProgress, studyEntries } = useApp();
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
   
   // Calculate all analytics from real data using useMemo for performance
   const analyticsData = useMemo(() => {
@@ -122,22 +124,35 @@ export default function Analytics() {
       };
     });
     
-    // Scores data
-    const scoresData = testLogs
+    // All unique categories that have test logs
+    const testCategories = Array.from(new Set(testLogs.map(e => e.categoryId)))
+      .map(catId => {
+        const exam = exams.find(ex => ex.categories.some(c => c.id === catId));
+        const category = exam?.categories.find(c => c.id === catId);
+        return category ? { id: catId, name: category.name, color: category.color } : null;
+      })
+      .filter(Boolean) as { id: string; name: string; color?: string }[];
+
+    // Scores data - ALL test logs, sorted newest first, with unique id for dedup
+    const allScoresData = testLogs
       .map(entry => {
         const exam = exams.find(ex => ex.id === entry.examId);
         const category = exam?.categories.find(c => c.id === entry.categoryId);
         return {
+          id: entry.id,
+          categoryId: entry.categoryId,
           date: new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          description: entry.description.length > 20 ? entry.description.slice(0, 20) + '...' : entry.description,
+          rawDate: entry.date,
+          description: entry.description.length > 25 ? entry.description.slice(0, 25) + '...' : entry.description,
+          fullDescription: entry.description,
           obtained: entry.marks!.obtained,
           total: entry.marks!.total,
           percentage: Math.round((entry.marks!.obtained / entry.marks!.total) * 100),
           category: category?.name || 'Unknown',
+          categoryColor: category?.color,
         };
       })
-      .slice(-10)
-      .reverse();
+      .sort((a, b) => b.rawDate.localeCompare(a.rawDate));
     
     return {
       overallProgress,
@@ -148,9 +163,28 @@ export default function Analytics() {
       examProgressData,
       allCategories,
       entriesByDay,
-      scoresData,
+      allScoresData,
+      testCategories,
     };
   }, [exams, studyEntries, getExamProgress, getOverallProgress]);
+
+  // Filtered scores based on selected categories
+  const filteredScoresData = useMemo(() => {
+    if (selectedCategories.size === 0) return analyticsData.allScoresData;
+    return analyticsData.allScoresData.filter(s => selectedCategories.has(s.categoryId));
+  }, [analyticsData.allScoresData, selectedCategories]);
+
+  const toggleCategory = (catId: string) => {
+    setSelectedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(catId)) {
+        next.delete(catId);
+      } else {
+        next.add(catId);
+      }
+      return next;
+    });
+  };
 
   return (
     <AppLayout>
@@ -489,7 +523,7 @@ export default function Analytics() {
             )}
 
             {/* Marks/Scores Analytics */}
-            {analyticsData.scoresData.length > 0 && (
+            {analyticsData.allScoresData.length > 0 && (
               <Card className="card-elevated">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base font-display flex items-center gap-2">
@@ -497,11 +531,47 @@ export default function Analytics() {
                     Test Scores History
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
+                  {/* Category Toggle Filters */}
+                  {analyticsData.testCategories.length > 1 && (
+                    <ScrollArea className="w-full whitespace-nowrap">
+                      <div className="flex gap-2 pb-2">
+                        <button
+                          onClick={() => setSelectedCategories(new Set())}
+                          className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                            selectedCategories.size === 0
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                          }`}
+                        >
+                          All Categories
+                        </button>
+                        {analyticsData.testCategories.map((cat, i) => (
+                          <button
+                            key={cat.id}
+                            onClick={() => toggleCategory(cat.id)}
+                            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                              selectedCategories.has(cat.id)
+                                ? 'text-primary-foreground'
+                                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                            }`}
+                            style={selectedCategories.has(cat.id) ? {
+                              backgroundColor: CHART_COLORS[i % CHART_COLORS.length],
+                            } : undefined}
+                          >
+                            {cat.name}
+                          </button>
+                        ))}
+                      </div>
+                      <ScrollBar orientation="horizontal" />
+                    </ScrollArea>
+                  )}
+
+                  {/* Chart */}
                   <div className="h-[200px] sm:h-[250px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart 
-                        data={analyticsData.scoresData}
+                        data={filteredScoresData.slice(0, 20)}
                         margin={{ top: 5, right: 20, left: -10, bottom: 5 }}
                       >
                         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -524,7 +594,7 @@ export default function Analytics() {
                               const data = payload[0].payload;
                               return (
                                 <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
-                                  <p className="text-sm font-medium text-foreground mb-1">{data.description}</p>
+                                  <p className="text-sm font-medium text-foreground mb-1">{data.fullDescription}</p>
                                   <p className="text-xs text-muted-foreground">{data.category}</p>
                                   <p className="text-sm text-foreground mt-1">
                                     <span className="font-semibold">{data.obtained}/{data.total}</span> ({data.percentage}%)
@@ -540,30 +610,36 @@ export default function Analytics() {
                           radius={[4, 4, 0, 0]}
                           name="Score %"
                         >
-                          {analyticsData.scoresData.map((entry, index) => (
-                            <Cell 
-                              key={`cell-${index}`} 
-                              fill={
-                                entry.percentage >= 80 
-                                  ? 'hsl(var(--success))' 
-                                  : entry.percentage >= 50 
-                                    ? 'hsl(var(--warning))' 
-                                    : 'hsl(var(--destructive))'
-                              } 
-                            />
-                          ))}
+                          {filteredScoresData.slice(0, 20).map((entry, index) => {
+                            const catIndex = analyticsData.testCategories.findIndex(c => c.id === entry.categoryId);
+                            return (
+                              <Cell 
+                                key={entry.id} 
+                                fill={catIndex >= 0 ? CHART_COLORS[catIndex % CHART_COLORS.length] : (
+                                  entry.percentage >= 80 
+                                    ? 'hsl(var(--success))' 
+                                    : entry.percentage >= 50 
+                                      ? 'hsl(var(--warning))' 
+                                      : 'hsl(var(--destructive))'
+                                )} 
+                              />
+                            );
+                          })}
                         </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
-                  <div className="mt-4 space-y-2">
-                    {analyticsData.scoresData.slice(0, 5).map((score, index) => (
-                      <div key={index} className="flex items-center justify-between text-sm">
+
+                  {/* Results List - same filtered data */}
+                  <div className="space-y-2 border-t border-border pt-4">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Results</p>
+                    {filteredScoresData.map((score) => (
+                      <div key={score.id} className="flex items-center justify-between text-sm py-1.5">
                         <div className="flex-1 min-w-0">
-                          <span className="text-foreground truncate block">{score.description}</span>
+                          <span className="text-foreground truncate block">{score.fullDescription}</span>
                           <span className="text-xs text-muted-foreground">{score.category} • {score.date}</span>
                         </div>
-                        <span className={`font-semibold ml-2 ${
+                        <span className={`font-semibold ml-2 shrink-0 ${
                           score.percentage >= 80 ? 'text-success' : 
                           score.percentage >= 50 ? 'text-warning' : 
                           'text-destructive'

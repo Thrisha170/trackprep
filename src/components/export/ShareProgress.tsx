@@ -22,34 +22,52 @@ export function ShareProgress() {
     if (shareType === 'overall') {
       const totalCategories = exams.reduce((sum, e) => sum + e.categories.length, 0);
       const totalDays = new Set(studyEntries.map(e => e.date)).size;
+      const studyLogs = studyEntries.filter(e => !e.marks);
+      const testLogs = studyEntries.filter(e => e.marks);
+      const avgScore = testLogs.length > 0
+        ? Math.round(testLogs.reduce((sum, e) => sum + (e.marks!.obtained / e.marks!.total) * 100, 0) / testLogs.length)
+        : null;
       
-      return `📚 My TrackPrep Study Progress\n\n` +
-        `🎯 Overall Progress: ${overallProgress}%\n` +
-        `📖 Exams: ${exams.length}\n` +
-        `📂 Categories: ${totalCategories}\n` +
-        `📝 Study Sessions: ${studyEntries.length}\n` +
-        `📅 Days Studied: ${totalDays}\n\n` +
-        `#TrackPrep #StudyProgress #ExamPrep`;
+      let text = `📚 My TrackPrep Study Progress\n\n`;
+      text += `🎯 Overall Progress: ${overallProgress}%\n`;
+      text += `📖 Exams: ${exams.length}\n`;
+      text += `📂 Categories: ${totalCategories}\n`;
+      text += `📝 Study Sessions: ${studyLogs.length}\n`;
+      text += `📊 Test Logs: ${testLogs.length}\n`;
+      if (avgScore !== null) {
+        text += `🏆 Avg Test Score: ${avgScore}%\n`;
+      }
+      text += `📅 Days Studied: ${totalDays}\n\n`;
+      text += `#TrackPrep #StudyProgress #ExamPrep`;
+      return text;
     } else if (selectedExam) {
       const examProgress = getExamProgress(selectedExam.id);
       const examEntries = studyEntries.filter(e => e.examId === selectedExam.id);
-      const testScores = examEntries.filter(e => e.marks);
-      const avgScore = testScores.length > 0
-        ? Math.round(testScores.reduce((sum, e) => sum + (e.marks!.obtained / e.marks!.total) * 100, 0) / testScores.length)
+      const studyLogs = examEntries.filter(e => !e.marks);
+      const testLogs = examEntries.filter(e => e.marks);
+      const avgScore = testLogs.length > 0
+        ? Math.round(testLogs.reduce((sum, e) => sum + (e.marks!.obtained / e.marks!.total) * 100, 0) / testLogs.length)
         : null;
 
       let text = `📚 ${selectedExam.name} - Study Progress\n\n`;
       text += `🎯 Progress: ${examProgress}%\n`;
       text += `📂 Categories: ${selectedExam.categories.length}\n`;
-      text += `📝 Study Sessions: ${examEntries.length}\n`;
+      text += `📝 Study Sessions: ${studyLogs.length}\n`;
+      text += `📊 Test Logs: ${testLogs.length}\n`;
       
       if (avgScore !== null) {
-        text += `📊 Avg Test Score: ${avgScore}%\n`;
+        text += `🏆 Avg Test Score: ${avgScore}%\n`;
       }
+      
+      // Per-category breakdown
+      selectedExam.categories.forEach(cat => {
+        const catProgress = calculateProgress(cat.completedValue, cat.targetValue);
+        text += `  • ${cat.name}: ${catProgress}%\n`;
+      });
       
       if (selectedExam.targetDate) {
         const daysLeft = Math.ceil((new Date(selectedExam.targetDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-        text += `📅 ${daysLeft > 0 ? `${daysLeft} days until exam` : 'Exam day!'}\n`;
+        text += `\n📅 ${daysLeft > 0 ? `${daysLeft} days until exam` : 'Exam day!'}\n`;
       }
       
       text += `\n#TrackPrep #StudyProgress #${selectedExam.name.replace(/\s+/g, '')}`;
