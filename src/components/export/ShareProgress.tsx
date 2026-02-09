@@ -1,11 +1,13 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Share2, Download, Copy, Check, Loader2 } from 'lucide-react';
+import { Share2, Copy, Check, Loader2, Download } from 'lucide-react';
 import { toast } from 'sonner';
-import { calculateProgress, formatTime } from '@/types';
+import { calculateProgress } from '@/types';
+
+const canNativeShare = typeof navigator !== 'undefined' && !!navigator.share;
 
 export function ShareProgress() {
   const { exams, getExamProgress, getOverallProgress, studyEntries } = useApp();
@@ -13,10 +15,10 @@ export function ShareProgress() {
   const [selectedExamId, setSelectedExamId] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
-  const cardRef = useRef<HTMLDivElement>(null);
 
   const selectedExam = exams.find(e => e.id === selectedExamId);
   const overallProgress = getOverallProgress();
+  const isDisabled = shareType === 'exam' && !selectedExamId;
 
   const generateShareText = () => {
     if (shareType === 'overall') {
@@ -34,9 +36,7 @@ export function ShareProgress() {
       text += `📂 Categories: ${totalCategories}\n`;
       text += `📝 Study Sessions: ${studyLogs.length}\n`;
       text += `📊 Test Logs: ${testLogs.length}\n`;
-      if (avgScore !== null) {
-        text += `🏆 Avg Test Score: ${avgScore}%\n`;
-      }
+      if (avgScore !== null) text += `🏆 Avg Test Score: ${avgScore}%\n`;
       text += `📅 Days Studied: ${totalDays}\n\n`;
       text += `#TrackPrep #StudyProgress #ExamPrep`;
       return text;
@@ -54,12 +54,8 @@ export function ShareProgress() {
       text += `📂 Categories: ${selectedExam.categories.length}\n`;
       text += `📝 Study Sessions: ${studyLogs.length}\n`;
       text += `📊 Test Logs: ${testLogs.length}\n`;
+      if (avgScore !== null) text += `🏆 Avg Test Score: ${avgScore}%\n`;
       
-      if (avgScore !== null) {
-        text += `🏆 Avg Test Score: ${avgScore}%\n`;
-      }
-      
-      // Per-category breakdown
       selectedExam.categories.forEach(cat => {
         const catProgress = calculateProgress(cat.completedValue, cat.targetValue);
         text += `  • ${cat.name}: ${catProgress}%\n`;
@@ -71,7 +67,6 @@ export function ShareProgress() {
       }
       
       text += `\n#TrackPrep #StudyProgress #${selectedExam.name.replace(/\s+/g, '')}`;
-      
       return text;
     }
     return '';
@@ -79,226 +74,85 @@ export function ShareProgress() {
 
   const handleCopyText = async () => {
     const text = generateShareText();
+    if (!text) return;
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
-      toast.success('Progress copied to clipboard!');
+      toast.success('Progress summary copied to clipboard!');
       setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
-      toast.error('Failed to copy');
+    } catch {
+      // Fallback for older browsers
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        setCopied(true);
+        toast.success('Progress summary copied!');
+        setTimeout(() => setCopied(false), 2000);
+      } catch {
+        toast.error('Could not copy text. Please try again.');
+      }
+      document.body.removeChild(textarea);
     }
   };
 
-  const handleNativeShare = async () => {
+  const handleShare = async () => {
     const text = generateShareText();
-    
-    if (navigator.share) {
+    if (!text) return;
+
+    if (canNativeShare) {
       try {
-        await navigator.share({
-          title: 'My TrackPrep Progress',
-          text: text,
-        });
+        await navigator.share({ title: 'My TrackPrep Progress', text });
         toast.success('Shared successfully!');
       } catch (error) {
-        if ((error as Error).name !== 'AbortError') {
-          toast.error('Failed to share');
-        }
+        // User cancelled — not an error
+        if ((error as Error).name === 'AbortError') return;
+        // Share failed — fall back to copy
+        toast.info('Share not available, copying to clipboard instead.');
+        handleCopyText();
       }
     } else {
+      // No native share — just copy
       handleCopyText();
     }
   };
 
   const handleDownloadCard = async () => {
+    if (isGenerating) return;
     setIsGenerating(true);
-    
     try {
-      // Generate a shareable HTML card
-      const cardHtml = generateShareCardHTML();
+      const progress = shareType === 'overall' ? overallProgress : (selectedExam ? getExamProgress(selectedExam.id) : 0);
+      const title = shareType === 'overall' ? 'My Study Progress' : (selectedExam?.name || 'Exam Progress');
+      const examData = shareType === 'overall'
+        ? exams.slice(0, 6).map(e => ({ name: e.name, progress: getExamProgress(e.id) }))
+        : (selectedExam?.categories.slice(0, 6).map(c => ({
+            name: c.name,
+            progress: calculateProgress(c.completedValue, c.targetValue)
+          })) || []);
+
+      const cardHtml = generateCardHTML(title, progress, examData);
       const blob = new Blob([cardHtml], { type: 'text/html;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `trackprep-progress-card-${new Date().toISOString().split('T')[0]}.html`;
+      a.download = `trackprep-card-${new Date().toISOString().split('T')[0]}.html`;
+      a.style.display = 'none';
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 100);
       toast.success('Progress card downloaded!');
-    } catch (error) {
-      toast.error('Failed to generate card');
+    } catch {
+      toast.error('Failed to generate card. Please try again.');
     } finally {
       setIsGenerating(false);
     }
-  };
-
-  const generateShareCardHTML = () => {
-    const progress = shareType === 'overall' ? overallProgress : (selectedExam ? getExamProgress(selectedExam.id) : 0);
-    const title = shareType === 'overall' ? 'My Study Progress' : (selectedExam?.name || 'Exam Progress');
-    
-    const examData = shareType === 'overall' 
-      ? exams.slice(0, 4).map(e => ({ name: e.name, progress: getExamProgress(e.id) }))
-      : (selectedExam?.categories.slice(0, 4).map(c => ({ 
-          name: c.name, 
-          progress: calculateProgress(c.completedValue, c.targetValue) 
-        })) || []);
-
-    return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TrackPrep Progress Card</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { 
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 20px;
-    }
-    .card {
-      background: linear-gradient(145deg, #0f1629 0%, #1a2342 100%);
-      border-radius: 20px;
-      padding: 30px;
-      max-width: 400px;
-      width: 100%;
-      color: white;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    .header { 
-      display: flex; 
-      align-items: center; 
-      gap: 12px; 
-      margin-bottom: 24px;
-    }
-    .logo {
-      width: 40px;
-      height: 40px;
-      background: linear-gradient(135deg, #00c6ff, #0072ff);
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-      font-size: 18px;
-    }
-    .title { 
-      font-size: 20px; 
-      font-weight: 600;
-    }
-    .subtitle { 
-      font-size: 12px; 
-      color: rgba(255, 255, 255, 0.6);
-    }
-    .progress-ring {
-      display: flex;
-      justify-content: center;
-      margin: 30px 0;
-    }
-    .progress-circle {
-      width: 160px;
-      height: 160px;
-      border-radius: 50%;
-      background: conic-gradient(
-        #00c6ff ${progress * 3.6}deg,
-        rgba(255, 255, 255, 0.1) ${progress * 3.6}deg
-      );
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .progress-inner {
-      width: 120px;
-      height: 120px;
-      background: #0f1629;
-      border-radius: 50%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-    }
-    .progress-value {
-      font-size: 36px;
-      font-weight: 700;
-      background: linear-gradient(135deg, #00c6ff, #0072ff);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    .progress-label {
-      font-size: 12px;
-      color: rgba(255, 255, 255, 0.6);
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-    .items { margin-top: 20px; }
-    .item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 12px 0;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    .item:last-child { border-bottom: none; }
-    .item-name { 
-      font-size: 14px;
-      color: rgba(255, 255, 255, 0.8);
-    }
-    .item-progress {
-      font-size: 14px;
-      font-weight: 600;
-      color: #00c6ff;
-    }
-    .footer {
-      margin-top: 24px;
-      padding-top: 16px;
-      border-top: 1px solid rgba(255, 255, 255, 0.1);
-      text-align: center;
-      font-size: 12px;
-      color: rgba(255, 255, 255, 0.4);
-    }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div class="header">
-      <div class="logo">T</div>
-      <div>
-        <div class="title">${title}</div>
-        <div class="subtitle">TrackPrep • ${new Date().toLocaleDateString()}</div>
-      </div>
-    </div>
-    
-    <div class="progress-ring">
-      <div class="progress-circle">
-        <div class="progress-inner">
-          <span class="progress-value">${progress}%</span>
-          <span class="progress-label">Complete</span>
-        </div>
-      </div>
-    </div>
-    
-    <div class="items">
-      ${examData.map(item => `
-        <div class="item">
-          <span class="item-name">${item.name}</span>
-          <span class="item-progress">${item.progress}%</span>
-        </div>
-      `).join('')}
-    </div>
-    
-    <div class="footer">
-      Generated with TrackPrep
-    </div>
-  </div>
-</body>
-</html>
-`;
   };
 
   return (
@@ -341,11 +195,8 @@ export function ShareProgress() {
           </div>
         )}
 
-        {/* Preview */}
-        <div 
-          ref={cardRef}
-          className="bg-gradient-to-br from-primary/20 to-accent/20 rounded-lg p-4 border border-border"
-        >
+        {/* Preview card */}
+        <div className="bg-gradient-to-br from-primary/20 to-accent/20 rounded-lg p-4 border border-border">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm">
               T
@@ -365,44 +216,117 @@ export function ShareProgress() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Button
-            variant="outline"
-            onClick={handleCopyText}
-            disabled={shareType === 'exam' && !selectedExamId}
-            className="w-full"
-          >
-            {copied ? (
-              <Check className="w-4 h-4 mr-2 text-success" />
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              variant="outline"
+              onClick={handleCopyText}
+              disabled={isDisabled}
+              className="w-full"
+            >
+              {copied ? (
+                <Check className="w-4 h-4 mr-2 text-success" />
+              ) : (
+                <Copy className="w-4 h-4 mr-2" />
+              )}
+              {copied ? 'Copied!' : 'Copy Text'}
+            </Button>
+            {canNativeShare ? (
+              <Button
+                onClick={handleShare}
+                disabled={isDisabled}
+                className="w-full"
+              >
+                <Share2 className="w-4 h-4 mr-2" />
+                Share
+              </Button>
             ) : (
-              <Copy className="w-4 h-4 mr-2" />
+              <Button
+                variant="outline"
+                onClick={handleDownloadCard}
+                disabled={isGenerating || isDisabled}
+                className="w-full"
+              >
+                {isGenerating ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4 mr-2" />
+                )}
+                Download Card
+              </Button>
             )}
-            Copy Text
-          </Button>
-          <Button
-            onClick={handleNativeShare}
-            disabled={shareType === 'exam' && !selectedExamId}
-            className="w-full"
-          >
-            <Share2 className="w-4 h-4 mr-2" />
-            Share
-          </Button>
-        </div>
-        
-        <Button
-          variant="outline"
-          onClick={handleDownloadCard}
-          disabled={isGenerating || (shareType === 'exam' && !selectedExamId)}
-          className="w-full"
-        >
-          {isGenerating ? (
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-          ) : (
-            <Download className="w-4 h-4 mr-2" />
+          </div>
+          {canNativeShare && (
+            <Button
+              variant="outline"
+              onClick={handleDownloadCard}
+              disabled={isGenerating || isDisabled}
+              className="w-full"
+            >
+              {isGenerating ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4 mr-2" />
+              )}
+              Download Progress Card
+            </Button>
           )}
-          Download Progress Card
-        </Button>
+        </div>
       </CardContent>
     </Card>
   );
+}
+
+function generateCardHTML(title: string, progress: number, items: { name: string; progress: number }[]) {
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TrackPrep Progress Card</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #1a1a2e, #16213e); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
+    .card { background: linear-gradient(145deg, #0f1629, #1a2342); border-radius: 20px; padding: 30px; max-width: 400px; width: 100%; color: white; box-shadow: 0 20px 60px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); }
+    .header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+    .logo { width: 40px; height: 40px; background: linear-gradient(135deg, #00c6ff, #0072ff); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; }
+    .title { font-size: 20px; font-weight: 600; }
+    .subtitle { font-size: 12px; color: rgba(255,255,255,0.6); }
+    .progress-ring { display: flex; justify-content: center; margin: 30px 0; }
+    .progress-circle { width: 160px; height: 160px; border-radius: 50%; background: conic-gradient(#00c6ff ${progress * 3.6}deg, rgba(255,255,255,0.1) ${progress * 3.6}deg); display: flex; align-items: center; justify-content: center; }
+    .progress-inner { width: 120px; height: 120px; background: #0f1629; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .progress-value { font-size: 36px; font-weight: 700; background: linear-gradient(135deg, #00c6ff, #0072ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .progress-label { font-size: 12px; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 1px; }
+    .items { margin-top: 20px; }
+    .item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .item:last-child { border-bottom: none; }
+    .item-name { font-size: 14px; color: rgba(255,255,255,0.8); }
+    .item-progress { font-size: 14px; font-weight: 600; color: #00c6ff; }
+    .footer { margin-top: 24px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); text-align: center; font-size: 12px; color: rgba(255,255,255,0.4); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <div class="logo">T</div>
+      <div>
+        <div class="title">${title}</div>
+        <div class="subtitle">TrackPrep • ${new Date().toLocaleDateString()}</div>
+      </div>
+    </div>
+    <div class="progress-ring">
+      <div class="progress-circle">
+        <div class="progress-inner">
+          <span class="progress-value">${progress}%</span>
+          <span class="progress-label">Complete</span>
+        </div>
+      </div>
+    </div>
+    <div class="items">
+      ${items.map(i => `<div class="item"><span class="item-name">${i.name}</span><span class="item-progress">${i.progress}%</span></div>`).join('')}
+    </div>
+    <div class="footer">Generated with TrackPrep</div>
+  </div>
+</body>
+</html>`;
 }

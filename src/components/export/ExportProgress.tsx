@@ -3,7 +3,7 @@ import { useApp } from '@/context/AppContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Download, FileText, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { Download, FileText, FileSpreadsheet, Loader2, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatTime, calculateProgress } from '@/types';
 
@@ -11,7 +11,11 @@ export function ExportProgress() {
   const { exams, studyEntries, getExamProgress, getOverallProgress } = useApp();
   const [exportType, setExportType] = useState<'all' | 'exam'>('all');
   const [selectedExamId, setSelectedExamId] = useState<string>('');
-  const [isExporting, setIsExporting] = useState(false);
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
+  const [isExportingCSV, setIsExportingCSV] = useState(false);
+  const [pdfDone, setPdfDone] = useState(false);
+
+  const isDisabled = exportType === 'exam' && !selectedExamId;
 
   const generateCSVData = () => {
     const headers = ['Date', 'Exam', 'Category', 'Description', 'Type', 'Quantity', 'Unit', 'Marks Obtained', 'Marks Total', 'Percentage'];
@@ -31,7 +35,7 @@ export function ExportProgress() {
         entry.date,
         exam?.name || 'Unknown',
         category?.name || 'Unknown',
-        entry.description,
+        `"${entry.description.replace(/"/g, '""')}"`,
         category?.targetType || 'Unknown',
         isTime ? formatTime(entry.quantity) : entry.quantity,
         category?.unit || '',
@@ -56,13 +60,14 @@ export function ExportProgress() {
   <meta charset="UTF-8">
   <title>TrackPrep Progress Report</title>
   <style>
+    @media print { @page { margin: 15mm; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; color: #1a1a1a; }
     h1 { color: #0066cc; border-bottom: 2px solid #0066cc; padding-bottom: 10px; }
     h2 { color: #333; margin-top: 30px; }
     h3 { color: #666; }
     .summary-card { background: #f5f5f5; border-radius: 8px; padding: 15px; margin: 10px 0; }
     .progress-bar { background: #e0e0e0; border-radius: 4px; height: 20px; overflow: hidden; margin: 5px 0; }
-    .progress-fill { background: linear-gradient(90deg, #0066cc, #00cc99); height: 100%; transition: width 0.3s; }
+    .progress-fill { background: linear-gradient(90deg, #0066cc, #00cc99); height: 100%; }
     table { width: 100%; border-collapse: collapse; margin: 15px 0; }
     th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
     th { background: #f0f0f0; }
@@ -141,7 +146,6 @@ export function ExportProgress() {
 
       html += `</table>`;
 
-      // Add recent entries with marks
       const entriesWithMarks = examEntries.filter(e => e.marks);
       if (entriesWithMarks.length > 0) {
         html += `
@@ -182,45 +186,51 @@ export function ExportProgress() {
     return html;
   };
 
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    // Small delay before cleanup for iOS Safari
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 100);
+  };
+
   const handleExportCSV = () => {
-    setIsExporting(true);
+    if (isExportingCSV) return;
+    setIsExportingCSV(true);
     try {
       const csvData = generateCSVData();
       const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `trackprep-progress-${new Date().toISOString().split('T')[0]}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      downloadBlob(blob, `trackprep-progress-${new Date().toISOString().split('T')[0]}.csv`);
       toast.success('CSV exported successfully!');
     } catch (error) {
       toast.error('Failed to export CSV');
     } finally {
-      setIsExporting(false);
+      setIsExportingCSV(false);
     }
   };
 
   const handleExportPDF = () => {
-    setIsExporting(true);
+    if (isExportingPDF) return;
+    setIsExportingPDF(true);
+    setPdfDone(false);
     try {
       const htmlContent = generatePDFContent();
       const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const printWindow = window.open(url, '_blank');
-      if (printWindow) {
-        printWindow.onload = () => {
-          printWindow.print();
-        };
-      }
-      URL.revokeObjectURL(url);
-      toast.success('PDF report opened for printing!');
+      downloadBlob(blob, `trackprep-report-${new Date().toISOString().split('T')[0]}.html`);
+      setPdfDone(true);
+      toast.success('PDF report downloaded! Open the file and use Print → Save as PDF for a polished report.');
+      setTimeout(() => setPdfDone(false), 3000);
     } catch (error) {
-      toast.error('Failed to generate PDF');
+      toast.error('Failed to generate report');
     } finally {
-      setIsExporting(false);
+      setIsExportingPDF(false);
     }
   };
 
@@ -264,32 +274,35 @@ export function ExportProgress() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3 pt-2">
+        <div className="space-y-3 pt-2">
+          {/* PDF as primary action */}
           <Button
-            variant="outline"
             onClick={handleExportPDF}
-            disabled={isExporting || (exportType === 'exam' && !selectedExamId)}
+            disabled={isExportingPDF || isDisabled}
             className="w-full"
           >
-            {isExporting ? (
+            {isExportingPDF ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : pdfDone ? (
+              <Check className="w-4 h-4 mr-2" />
             ) : (
               <FileText className="w-4 h-4 mr-2" />
             )}
-            PDF Report
+            {isExportingPDF ? 'Generating...' : pdfDone ? 'Downloaded!' : 'Download PDF Report'}
           </Button>
+
           <Button
             variant="outline"
             onClick={handleExportCSV}
-            disabled={isExporting || (exportType === 'exam' && !selectedExamId)}
+            disabled={isExportingCSV || isDisabled}
             className="w-full"
           >
-            {isExporting ? (
+            {isExportingCSV ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             ) : (
               <FileSpreadsheet className="w-4 h-4 mr-2" />
             )}
-            CSV Data
+            Export CSV Data
           </Button>
         </div>
       </CardContent>
