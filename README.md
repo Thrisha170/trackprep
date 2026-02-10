@@ -1,73 +1,170 @@
-# Welcome to your Lovable project
+📘 TrackPrep – Smart Study & Test Progress Tracker
 
-## Project info
+TrackPrep is a modern, mobile-first study tracking web application designed to help students plan, track, test, analyze, and export their learning progress in a structured and meaningful way.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+It combines effort tracking (Study Logs) with performance tracking (Test Logs) to give accurate analytics and actionable insights.
 
-## How can I edit this code?
+🚀 Live Demo
 
-There are several ways of editing your application.
+🔗 Deployed on Vercel:
+https://trackprep-nrystrdxx-thrisha170s-projects.vercel.app
 
-**Use Lovable**
+✨ Key Features
+📂 Category-Based Learning
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+Create multiple study categories (e.g., Listening, Reading, subject categories)
 
-Changes made via Lovable will be committed automatically to this repo.
+Each category supports:
 
-**Use your preferred IDE**
+Study Logs (effort)
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+Test Logs (performance)
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+Edit or delete categories safely
 
-Follow these steps:
+📝 Dual Logging System
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+Study Logs
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+Track time (minutes & hours)
 
-# Step 3: Install the necessary dependencies.
-npm i
+Track tasks/units completed
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+Test Logs
 
-**Edit a file directly in GitHub**
+Track marks/scores (integer only)
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Linked directly to categories
 
-**Use GitHub Codespaces**
+Mandatory dual logging ensures meaningful analytics
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+📊 Advanced Analytics
 
-## What technologies are used for this project?
+Category-wise progress tracking
 
-This project is built with:
+Effort vs performance comparison
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Test score history charts
 
-## How can I deploy this project?
+Accurate real-time recalculation on every update
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+Works seamlessly in light & dark themes
 
-## Can I connect a custom domain to my Lovable project?
+📤 Export & Share Progress
 
-Yes, you can!
+Download PDF progress reports
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+Export data as CSV
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Copy progress summary text
+
+Export reflects analytics data accurately
+
+Mobile & desktop compatible
+
+🌗 Dual Theme Support
+
+Light theme for daytime use
+
+Dark theme optimized for night study sessions
+
+Smooth transitions with readable contrast
+
+📱 Mobile-First Design
+
+Fully responsive across all screen sizes
+
+Touch-friendly UI
+
+Optimized modals, charts, and navigation
+
+Smooth animations and transitions
+
+🔐 Authentication & Security
+
+Sign Up / Sign In / Logout
+
+Session persistence
+
+Client-side validation
+
+Security warnings reviewed and documented for production hardening
+
+🛠️ Tech Stack
+
+Frontend: React (Lovable-generated)
+
+Styling: Modern UI components with theme support
+
+Charts & Analytics: Interactive data visualizations
+
+Authentication: Lovable built-in auth
+
+Deployment: Vercel
+
+🧠 Design Philosophy
+
+Focus on clarity over clutter
+
+Treat learning as a journey, not just numbers
+
+Separate effort from results
+
+Encourage consistency and reflection
+
+🧪 Functional Coverage
+
+✔ Category management
+✔ Study log creation
+✔ Test log creation
+✔ Accurate analytics
+✔ Export & download reports
+✔ Mobile responsiveness
+✔ Smooth animations
+
+⚠️ Known Limitations (Planned Improvements)
+
+Advanced password strength enforcement
+
+Server-side validation hardening
+
+Social sharing via native APIs (optional)
+
+AI-powered insights & recommendations
+
+📦 Deployment
+
+This project is deployed on Vercel.
+
+To deploy locally:
+
+npm install
+npm run build
+npm run preview
+
+👤 Author
+
+Kamakshi (TrackPrep Project)
+Built as a portfolio and learning project to demonstrate:
+
+Product thinking
+
+Frontend architecture
+
+Analytics accuracy
+
+UX-focused design
+
+⭐ Why This Project Matters
+
+TrackPrep goes beyond a basic tracker by combining:
+
+Discipline (study logs)
+
+Evaluation (test logs)
+
+Insight (analytics)
+
+Reflection (exportable progress)
+
+It’s designed to help students study smarter, not just longer.
